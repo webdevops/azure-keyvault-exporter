@@ -1,4 +1,4 @@
-FROM golang:1.10 as build
+FROM golang:1.11 as build
 WORKDIR /go/src/azure-keyvault-exporter/src
 COPY ./src /go/src/azure-keyvault-exporter/src
 RUN curl https://glide.sh/get | sh \

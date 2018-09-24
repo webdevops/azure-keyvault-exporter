@@ -1,77 +1,132 @@
 package main
 
 import (
-	"time"
 	"log"
 	"fmt"
+	"sync"
+	"time"
+	"regexp"
 	"context"
 	"net/http"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/Azure/azure-sdk-for-go/profiles/latest/resources/mgmt/subscriptions"
 	keyvaultMgmt "github.com/Azure/azure-sdk-for-go/services/keyvault/mgmt/2016-10-01/keyvault"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
 )
 
 var (
-	prometheusKeyvault = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "azure_keyvault",
-			Help: "Azure KeyVault",
-		},
-		[]string{"Subscription", "Keyvault"},
-	)
+	resourceGroupFromResourceIdRegExp = regexp.MustCompile("/resourceGroups/([^/]*)")
 
-	prometheusKeyvaultKeys = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "azure_keyvault_key",
-			Help: "Azure KeyVault key",
-		},
-		[]string{"Keyvault", "ID", "Expiry"},
-	)
-
-	prometheusKeyvaultSecrets = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "azure_keyvault_secret",
-			Help: "Azure KeyVault secret",
-		},
-		[]string{"Keyvault", "ID", "Expiry"},
-	)
-
-	prometheusKeyvaultCertificates = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "azure_keyvault_certificate",
-			Help: "Azure KeyVault certificate",
-		},
-		[]string{"Keyvault", "ID", "Expiry"},
-	)
+	prometheusKeyvault *prometheus.GaugeVec
+	prometheusKeyvaultKeyInfo *prometheus.GaugeVec
+	prometheusKeyvaultKeyStatus *prometheus.GaugeVec
+	prometheusKeyvaultSecretInfo *prometheus.GaugeVec
+	prometheusKeyvaultSecretStatus *prometheus.GaugeVec
+	prometheusKeyvaultCertificateInfo *prometheus.GaugeVec
+	prometheusKeyvaultCertificateStatus *prometheus.GaugeVec
 )
 
 
-func initMetrics() {
+func setupMetrics() {
+	prometheusKeyvault = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "azurerm_keyvault_info",
+			Help: "Azure KeyVault informations",
+		},
+		append(
+			[]string{"subscriptionID", "vaultName", "location", "resourceGroup"},
+			prefixSlice(AZURE_KEYVAULT_TAG_PREFIX, opts.AzureKeyvaultTag)...
+		),
+	)
+
+	// ------------------------------------------
+	// key
+	prometheusKeyvaultKeyInfo = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "azurerm_keyvault_key_info",
+			Help: "Azure KeyVault key informations",
+		},
+		[]string{"vaultName", "keyID"},
+	)
+
+	prometheusKeyvaultKeyStatus = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "azurerm_keyvault_key_status",
+			Help: "Azure KeyVault key status",
+		},
+		[]string{"keyID", "type"},
+	)
+
+	// ------------------------------------------
+	// secret
+	prometheusKeyvaultSecretInfo = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "azurerm_keyvault_secret_info",
+			Help: "Azure KeyVault secret informations",
+		},
+		[]string{"vaultName", "secretID"},
+	)
+
+	prometheusKeyvaultSecretStatus = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "azurerm_keyvault_secret_status",
+			Help: "Azure KeyVault secret status",
+		},
+		[]string{"secretID", "type"},
+	)
+
+	// ------------------------------------------
+	// certificate
+	prometheusKeyvaultCertificateInfo = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "azurerm_keyvault_certificate_info",
+			Help: "Azure KeyVault certificate informations",
+		},
+		[]string{"vaultName", "secretID"},
+	)
+
+	prometheusKeyvaultCertificateStatus = prometheus.NewGaugeVec(
+		prometheus.GaugeOpts{
+			Name: "azurerm_keyvault_certificate_status",
+			Help: "Azure KeyVault certificate status",
+		},
+		[]string{"certificateID", "type"},
+	)
+
+
 	// Register the summary and the histogram with Prometheus's default registry.
 	prometheus.MustRegister(prometheusKeyvault)
-	prometheus.MustRegister(prometheusKeyvaultKeys)
-	prometheus.MustRegister(prometheusKeyvaultSecrets)
-	prometheus.MustRegister(prometheusKeyvaultCertificates)
+	prometheus.MustRegister(prometheusKeyvaultKeyInfo)
+	prometheus.MustRegister(prometheusKeyvaultKeyStatus)
+	prometheus.MustRegister(prometheusKeyvaultSecretInfo)
+	prometheus.MustRegister(prometheusKeyvaultSecretStatus)
+	prometheus.MustRegister(prometheusKeyvaultCertificateInfo)
+	prometheus.MustRegister(prometheusKeyvaultCertificateStatus)
+}
 
+func startMetricsCollection() {
 	go func() {
 		for {
 			probeCollect()
-			time.Sleep(time.Duration(opts.ScrapeTime) * time.Second)
+			time.Sleep(opts.ScrapeTime)
 		}
 	}()
 }
 
 func startHttpServer() {
 	http.Handle("/metrics", promhttp.Handler())
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	log.Fatal(http.ListenAndServe(opts.ServerBind, nil))
 }
 
 func probeCollect() {
 	var err error
 	var keyvaultResult keyvaultMgmt.VaultListResultIterator
+	var wg sync.WaitGroup
 	ctx := context.Background()
+
+	callbackChannel := make(chan func())
 
 	keyvaultAuth, err := auth.NewAuthorizerFromEnvironmentWithResource("https://vault.azure.net")
 	if err != nil {
@@ -79,6 +134,11 @@ func probeCollect() {
 	}
 
 	for _, subscription := range AzureSubscriptions {
+		Logger.Messsage(
+			"Starting metrics update for Azure Subscription %v",
+			*subscription.SubscriptionID,
+		)
+
 		keyvaultClient := keyvaultMgmt.NewVaultsClient(*subscription.SubscriptionID)
 		keyvaultClient.Authorizer = AzureAuthorizer
 
@@ -96,100 +156,231 @@ func probeCollect() {
 			keyvaultItem := keyvaultResult.Value()
 			keyvaultUrl := fmt.Sprintf("https://%s.vault.azure.net", *keyvaultItem.Name)
 
-			keyvaultItemClient := keyvault.New()
-			keyvaultItemClient.Authorizer = keyvaultAuth
+			client := keyvault.New()
+			client.Authorizer = keyvaultAuth
 
-			prometheusKeyvault.With(prometheus.Labels{"Subscription": *subscription.ID, "Keyvault": *keyvaultItem.Name}).Set(1)
+			wg.Add(1)
+			go func(ctx context.Context, subscription subscriptions.Subscription, client keyvault.BaseClient, vault keyvaultMgmt.Vault, vaultUrl string) {
+				defer wg.Done()
 
-			// ########################
-			// Keys
-			// ########################
+				status := collectKeyvault(ctx, subscription, client, vault, vaultUrl, callbackChannel)
 
-			keyResult, err := keyvaultItemClient.GetKeysComplete(ctx, keyvaultUrl, nil)
-			if err != nil {
-				Logger.Error(fmt.Sprintf("%s: failed to get keys", *keyvaultItem.Name), err)
-				continue
-			}
+				// collect resourceGroup
+				resourceGroup := ""
+				rgSubMatch := resourceGroupFromResourceIdRegExp.FindStringSubmatch(*keyvaultItem.ID)
 
-			for keyResult.NotDone() {
-				keyItem := keyResult.Value()
-
-				expiryString := ""
-				expiryValue := float64(1)
-				if keyItem.Attributes.NotBefore != nil {
-					expiry := time.Unix(0,0).Add(keyItem.Attributes.Expires.Duration())
-					expiryString = expiry.Format(time.RFC3339)
-					expiryValue = float64(expiry.Unix())
+				if len(rgSubMatch) >= 1 {
+					resourceGroup = rgSubMatch[1]
 				}
 
-				prometheusKeyvaultKeys.With(prometheus.Labels{"Keyvault": *keyvaultItem.Name, "ID": *keyItem.Kid, "Expiry": expiryString}).Set(expiryValue)
-
-				if keyResult.Next() != nil {
-					break
-				}
-			}
-
-
-			// ########################
-			// Secrets
-			// ########################
-
-			secretsResult, err := keyvaultItemClient.GetSecretsComplete(ctx, keyvaultUrl, nil)
-			if err != nil {
-				Logger.Error(fmt.Sprintf("%s: failed to get secrets", *keyvaultItem.Name), err)
-				continue
-			}
-
-			for secretsResult.NotDone() {
-				secretItem := secretsResult.Value()
-
-				expiryString := ""
-				expiryValue := float64(1)
-				if secretItem.Attributes.NotBefore != nil {
-					expiry := time.Unix(0,0).Add(secretItem.Attributes.Expires.Duration())
-					expiryString = expiry.Format(time.RFC3339)
-					expiryValue = float64(expiry.Unix())
+				// set labels
+				rgLabels := prometheus.Labels{
+					"subscriptionID": *subscription.SubscriptionID,
+					"vaultName": *keyvaultItem.Name,
+					"location": *keyvaultItem.Location,
+					"resourceGroup": resourceGroup,
 				}
 
-				prometheusKeyvaultSecrets.With(prometheus.Labels{"Keyvault": *keyvaultItem.Name, "ID": *secretItem.ID, "Expiry": expiryString}).Set(expiryValue)
+				// add tags
+				for _, rgTag := range opts.AzureKeyvaultTag {
+					rgTabLabel := AZURE_KEYVAULT_TAG_PREFIX + rgTag
 
-				if secretsResult.Next() != nil {
-					break
-				}
-			}
-
-			// ########################
-			// Certificate
-			// ########################
-
-			certificateResult, err := keyvaultItemClient.GetCertificatesComplete(ctx, keyvaultUrl, nil)
-			if err != nil {
-				Logger.Error(fmt.Sprintf("%s: failed to get certificates", *keyvaultItem.Name), err)
-				continue
-			}
-
-			for certificateResult.NotDone() {
-				certificateItem := certificateResult.Value()
-
-				expiryString := ""
-				expiryValue := float64(1)
-				if certificateItem.Attributes.NotBefore != nil {
-					expiry := time.Unix(0,0).Add(certificateItem.Attributes.Expires.Duration())
-					expiryString = expiry.Format(time.RFC3339)
-					expiryValue = float64(expiry.Unix())
+					if _, ok := keyvaultItem.Tags[rgTag]; ok {
+						rgLabels[rgTabLabel] = *keyvaultItem.Tags[rgTag]
+					} else {
+						rgLabels[rgTabLabel] = ""
+					}
 				}
 
-				prometheusKeyvaultCertificates.With(prometheus.Labels{"Keyvault": *keyvaultItem.Name, "ID": *certificateItem.ID, "Expiry": expiryString}).Set(expiryValue)
-
-				if certificateResult.Next() != nil {
-					break
+				callbackChannel <- func() {
+					prometheusKeyvault.With(rgLabels).Set(boolToFloat64(status))
 				}
-			}
+
+			}(ctx, subscription, client, keyvaultItem, keyvaultUrl)
 
 			if keyvaultResult.Next() != nil {
 				break
 			}
 		}
 	}
+
+	go func() {
+		var callbackList []func()
+		for callback := range callbackChannel {
+			callbackList = append(callbackList, callback)
+		}
+
+		prometheusKeyvault.Reset()
+		prometheusKeyvaultKeyInfo.Reset()
+		prometheusKeyvaultKeyStatus.Reset()
+		prometheusKeyvaultSecretInfo.Reset()
+		prometheusKeyvaultSecretStatus.Reset()
+		prometheusKeyvaultCertificateInfo.Reset()
+		prometheusKeyvaultCertificateStatus.Reset()
+		for _, callback := range callbackList {
+			callback()
+		}
+	}()
+
+	wg.Wait()
+	close(callbackChannel)
+
+	Logger.Messsage("Finished Azure Subscription metrics collection")
+}
+
+func collectKeyvault(ctx context.Context, subscription subscriptions.Subscription, client keyvault.BaseClient, vault keyvaultMgmt.Vault, vaultUrl string, callback chan<- func()) (status bool) {
+	status = true
+
+	// ########################
+	// Keys
+	// ########################
+
+	keyResult, err := client.GetKeysComplete(ctx, vaultUrl, nil)
+	if err != nil {
+		ErrorLogger.Verbose("%v: %v", *vault.Name, err)
+		status = false
+	}
+
+	for keyResult.NotDone() {
+		item := keyResult.Value()
+
+		expiryDate := float64(0)
+		if item.Attributes.Expires != nil {
+			timestamp := time.Unix(0,0).Add(item.Attributes.Expires.Duration())
+			expiryDate = float64(timestamp.Unix())
+		}
+
+		notBeforeDate := float64(0)
+		if item.Attributes.NotBefore != nil {
+			timestamp := time.Unix(0,0).Add(item.Attributes.NotBefore.Duration())
+			notBeforeDate = float64(timestamp.Unix())
+		}
+
+		createdDate := float64(0)
+		if item.Attributes.Created != nil {
+			timestamp := time.Unix(0,0).Add(item.Attributes.Created.Duration())
+			createdDate = float64(timestamp.Unix())
+		}
+
+		updatedDate := float64(0)
+		if item.Attributes.Updated != nil {
+			timestamp := time.Unix(0,0).Add(item.Attributes.Updated.Duration())
+			updatedDate = float64(timestamp.Unix())
+		}
+
+		callback <- func() {
+			prometheusKeyvaultKeyInfo.With(prometheus.Labels{"vaultName": *vault.Name, "keyID": *item.Kid}).Set(boolToFloat64(*item.Attributes.Enabled))
+			prometheusKeyvaultKeyStatus.With(prometheus.Labels{"keyID": *item.Kid, "type": "expiry"}).Set(expiryDate)
+			prometheusKeyvaultKeyStatus.With(prometheus.Labels{"keyID": *item.Kid, "type": "notBefore"}).Set(notBeforeDate)
+			prometheusKeyvaultKeyStatus.With(prometheus.Labels{"keyID": *item.Kid, "type": "created"}).Set(createdDate)
+			prometheusKeyvaultKeyStatus.With(prometheus.Labels{"keyID": *item.Kid, "type": "updated"}).Set(updatedDate)
+		}
+
+		if keyResult.Next() != nil {
+			break
+		}
+	}
+
+	// ########################
+	// Secrets
+	// ########################
+
+	secretsResult, err := client.GetSecretsComplete(ctx, vaultUrl, nil)
+	if err != nil {
+		ErrorLogger.Verbose("%v: %v", *vault.Name, err)
+		status = false
+	}
+
+	for secretsResult.NotDone() {
+		item := secretsResult.Value()
+
+		expiryDate := float64(0)
+		if item.Attributes.Expires != nil {
+			timestamp := time.Unix(0,0).Add(item.Attributes.Expires.Duration())
+			expiryDate = float64(timestamp.Unix())
+		}
+
+		notBeforeDate := float64(0)
+		if item.Attributes.NotBefore != nil {
+			timestamp := time.Unix(0,0).Add(item.Attributes.NotBefore.Duration())
+			notBeforeDate = float64(timestamp.Unix())
+		}
+
+		createdDate := float64(0)
+		if item.Attributes.Created != nil {
+			timestamp := time.Unix(0,0).Add(item.Attributes.Created.Duration())
+			createdDate = float64(timestamp.Unix())
+		}
+
+		updatedDate := float64(0)
+		if item.Attributes.Updated != nil {
+			timestamp := time.Unix(0,0).Add(item.Attributes.Updated.Duration())
+			updatedDate = float64(timestamp.Unix())
+		}
+
+		callback <- func() {
+			prometheusKeyvaultSecretInfo.With(prometheus.Labels{"vaultName": *vault.Name, "secretID": *item.ID}).Set(boolToFloat64(*item.Attributes.Enabled))
+			prometheusKeyvaultSecretStatus.With(prometheus.Labels{"secretID": *item.ID, "type": "expiry"}).Set(expiryDate)
+			prometheusKeyvaultSecretStatus.With(prometheus.Labels{"secretID": *item.ID, "type": "notBefore"}).Set(notBeforeDate)
+			prometheusKeyvaultSecretStatus.With(prometheus.Labels{"secretID": *item.ID, "type": "created"}).Set(createdDate)
+			prometheusKeyvaultSecretStatus.With(prometheus.Labels{"secretID": *item.ID, "type": "updated"}).Set(updatedDate)
+		}
+
+		if secretsResult.Next() != nil {
+			break
+		}
+	}
+
+	// ########################
+	// Certificate
+	// ########################
+
+	certificateResult, err := client.GetCertificatesComplete(ctx, vaultUrl, nil)
+	if err != nil {
+		ErrorLogger.Verbose("%v: %v", *vault.Name, err)
+		status = false
+	}
+
+	for certificateResult.NotDone() {
+		item := certificateResult.Value()
+
+		expiryDate := float64(0)
+		if item.Attributes.Expires != nil {
+			timestamp := time.Unix(0,0).Add(item.Attributes.Expires.Duration())
+			expiryDate = float64(timestamp.Unix())
+		}
+
+		notBeforeDate := float64(0)
+		if item.Attributes.NotBefore != nil {
+			timestamp := time.Unix(0,0).Add(item.Attributes.NotBefore.Duration())
+			notBeforeDate = float64(timestamp.Unix())
+		}
+
+		createdDate := float64(0)
+		if item.Attributes.Created != nil {
+			timestamp := time.Unix(0,0).Add(item.Attributes.Created.Duration())
+			createdDate = float64(timestamp.Unix())
+		}
+
+		updatedDate := float64(0)
+		if item.Attributes.Updated != nil {
+			timestamp := time.Unix(0,0).Add(item.Attributes.Updated.Duration())
+			updatedDate = float64(timestamp.Unix())
+		}
+
+		callback <- func() {
+			prometheusKeyvaultCertificateInfo.With(prometheus.Labels{"vaultName": *vault.Name, "certificateID": *item.ID}).Set(boolToFloat64(*item.Attributes.Enabled))
+			prometheusKeyvaultCertificateStatus.With(prometheus.Labels{"certificateID": *item.ID, "type": "expiry"}).Set(expiryDate)
+			prometheusKeyvaultCertificateStatus.With(prometheus.Labels{"certificateID": *item.ID, "type": "notBefore"}).Set(notBeforeDate)
+			prometheusKeyvaultCertificateStatus.With(prometheus.Labels{"certificateID": *item.ID, "type": "created"}).Set(createdDate)
+			prometheusKeyvaultCertificateStatus.With(prometheus.Labels{"certificateID": *item.ID, "type": "updated"}).Set(updatedDate)
+		}
+
+		if certificateResult.Next() != nil {
+			break
+		}
+	}
+
+	return
 }
 

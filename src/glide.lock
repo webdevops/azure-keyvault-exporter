@@ -1,0 +1,71 @@
+hash: aa3519a7dc6c69ac5ac953924dfaef335c19554e1e957a21444c5f026a407be9
+updated: 2018-09-24T20:33:29.255816+02:00
+imports:
+- name: github.com/Azure/azure-sdk-for-go
+  version: f912cddf81bffc1569ccd89719a36acb64ca3035
+  subpackages:
+  - profiles/latest/resources/mgmt/subscriptions
+  - services/keyvault/2016-10-01/keyvault
+  - services/keyvault/mgmt/2016-10-01/keyvault
+  - services/resources/mgmt/2016-06-01/subscriptions
+  - version
+- name: github.com/Azure/go-autorest
+  version: a88c19ef2016e095f0b6c3b451074b4663f53bed
+  subpackages:
+  - autorest
+  - autorest/adal
+  - autorest/azure
+  - autorest/azure/auth
+  - autorest/date
+  - autorest/to
+  - autorest/validation
+  - logger
+  - version
+- name: github.com/beorn7/perks
+  version: 3a771d992973f24aa725d07868b467d1ddfceafb
+  subpackages:
+  - quantile
+- name: github.com/dgrijalva/jwt-go
+  version: 01aeca54ebda6e0fbfafd0a524d234159c05ec20
+- name: github.com/dimchansky/utfbom
+  version: 5448fe645cb1964ba70ac8f9f2ffe975e61a536c
+- name: github.com/golang/protobuf
+  version: b4deda0973fb4c70b50d226b1af49f3da59f5265
+  subpackages:
+  - proto
+- name: github.com/jessevdk/go-flags
+  version: c0bdd90e3f6f784046c4b384a3e78770aaa31b07
+- name: github.com/matttproud/golang_protobuf_extensions
+  version: c12348ce28de40eed0136aa2b644d0ee0650e56c
+  subpackages:
+  - pbutil
+- name: github.com/prometheus/client_golang
+  version: f69c853d21c15596929fa9126ba211247e7dca95
+  subpackages:
+  - prometheus
+  - prometheus/internal
+  - prometheus/promhttp
+- name: github.com/prometheus/client_model
+  version: 5c3871d89910bfb32f5fcab2aa4b9ec68e65a99f
+  subpackages:
+  - go
+- name: github.com/prometheus/common
+  version: c7de2306084e37d54b8be01f3541a8464345e9a5
+  subpackages:
+  - expfmt
+  - internal/bitbucket.org/ww/goautoneg
+  - model
+- name: github.com/prometheus/procfs
+  version: 418d78d0b9a7b7de3a6bbc8a23def624cc977bb2
+  subpackages:
+  - internal/util
+  - nfs
+  - xfs
+- name: github.com/satori/go.uuid
+  version: 36e9d2ebbde5e3f13ab2e25625fd453271d6522e
+- name: golang.org/x/crypto
+  version: 49796115aa4b964c318aad4f3084fdb41e9aa067
+  subpackages:
+  - pkcs12
+  - pkcs12/internal/rc2
+testImports: []
