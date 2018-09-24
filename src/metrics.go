@@ -204,7 +204,11 @@ func probeCollect() {
 		}
 	}
 
+	var wgMetrics sync.WaitGroup
+	wgMetrics.Add(1)
 	go func() {
+		defer wgMetrics.Done()
+
 		var callbackList []func()
 		for callback := range callbackChannel {
 			callbackList = append(callbackList, callback)
@@ -224,6 +228,8 @@ func probeCollect() {
 
 	wg.Wait()
 	close(callbackChannel)
+
+	wgMetrics.Wait()
 
 	Logger.Messsage("Finished Azure Subscription metrics collection")
 }
