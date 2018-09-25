@@ -126,6 +126,8 @@ func probeCollect() {
 	var wg sync.WaitGroup
 	ctx := context.Background()
 
+	Logger.Messsage("run: start")
+
 	callbackChannel := make(chan func())
 
 	keyvaultAuth, err := auth.NewAuthorizerFromEnvironmentWithResource("https://vault.azure.net")
@@ -135,7 +137,7 @@ func probeCollect() {
 
 	for _, subscription := range AzureSubscriptions {
 		Logger.Messsage(
-			"Starting metrics update for Azure Subscription %v",
+			"subscription[%v]: Starting metrics update",
 			*subscription.SubscriptionID,
 		)
 
@@ -152,12 +154,15 @@ func probeCollect() {
 			panic(err)
 		}
 
+		keyvaultCount := 0
 		for keyvaultResult.NotDone() {
 			keyvaultItem := keyvaultResult.Value()
 			keyvaultUrl := fmt.Sprintf("https://%s.vault.azure.net", *keyvaultItem.Name)
 
 			client := keyvault.New()
 			client.Authorizer = keyvaultAuth
+
+			Logger.Verbose("keyvault[%v]: Collecting keyvault metrics", *keyvaultItem.Name)
 
 			wg.Add(1)
 			go func(ctx context.Context, subscription subscriptions.Subscription, client keyvault.BaseClient, vault keyvaultMgmt.Vault, vaultUrl string) {
@@ -201,14 +206,19 @@ func probeCollect() {
 			if keyvaultResult.Next() != nil {
 				break
 			}
+
+			keyvaultCount++
 		}
+
+		Logger.Messsage(
+			"subscription[%v]: found %v KeyVaults",
+			*subscription.SubscriptionID,
+			keyvaultCount,
+		)
+
 	}
 
-	var wgMetrics sync.WaitGroup
-	wgMetrics.Add(1)
 	go func() {
-		defer wgMetrics.Done()
-
 		var callbackList []func()
 		for callback := range callbackChannel {
 			callbackList = append(callbackList, callback)
@@ -224,14 +234,12 @@ func probeCollect() {
 		for _, callback := range callbackList {
 			callback()
 		}
+
+		Logger.Messsage("run: finished")
 	}()
 
 	wg.Wait()
 	close(callbackChannel)
-
-	wgMetrics.Wait()
-
-	Logger.Messsage("Finished Azure Subscription metrics collection")
 }
 
 func collectKeyvault(ctx context.Context, subscription subscriptions.Subscription, client keyvault.BaseClient, vault keyvaultMgmt.Vault, vaultUrl string, callback chan<- func()) (status bool) {
@@ -243,7 +251,7 @@ func collectKeyvault(ctx context.Context, subscription subscriptions.Subscriptio
 
 	keyResult, err := client.GetKeysComplete(ctx, vaultUrl, nil)
 	if err != nil {
-		ErrorLogger.Verbose("%v: %v", *vault.Name, err)
+		ErrorLogger.Verbose("keyvault[%v]: %v", *vault.Name, err)
 		status = false
 	}
 
@@ -293,7 +301,7 @@ func collectKeyvault(ctx context.Context, subscription subscriptions.Subscriptio
 
 	secretsResult, err := client.GetSecretsComplete(ctx, vaultUrl, nil)
 	if err != nil {
-		ErrorLogger.Verbose("%v: %v", *vault.Name, err)
+		ErrorLogger.Verbose("keyvault[%v]: %v", *vault.Name, err)
 		status = false
 	}
 
@@ -343,7 +351,7 @@ func collectKeyvault(ctx context.Context, subscription subscriptions.Subscriptio
 
 	certificateResult, err := client.GetCertificatesComplete(ctx, vaultUrl, nil)
 	if err != nil {
-		ErrorLogger.Verbose("%v: %v", *vault.Name, err)
+		ErrorLogger.Verbose("keyvault[%v]: %v", *vault.Name, err)
 		status = false
 	}
 
