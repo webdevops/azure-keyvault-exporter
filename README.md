@@ -18,6 +18,7 @@ Normally no configuration is needed but can be customized using environment vari
 | `AZURE_RESOURCEGROUP`             |                             | Azure ResourceGroup used for collecting informations (filter, empty for all) |
 | `AZURE_KEYVAULT_TAG`              | `owner`                     | Azure Keyvault tag which should be collected                                 |
 | `SCRAPE_TIME`                     | `3h`                        | Time (time.Duration) between API calls                                       |
+| `SCRAPE_TIME_RAND`                | `15m`                       | Randomization time between scrapes                                           |
 | `SERVER_BIND`                     | `:8080`                     | IP/Port binding                                                              |
 
 for Azure API authentication (using ENV vars) see https://github.com/Azure/azure-sdk-for-go#authentication

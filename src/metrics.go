@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"fmt"
+	"math/rand"
 	"sync"
 	"time"
 	"regexp"
@@ -107,10 +108,15 @@ func setupMetrics() {
 }
 
 func startMetricsCollection() {
+	rand.Seed(time.Now().UnixNano())
+
 	go func() {
 		for {
 			probeCollect()
-			time.Sleep(opts.ScrapeTime)
+
+			sleepDuration := randomTime(opts.ScrapeTime, opts.ScrapeTimeRand)
+			Logger.Messsage("run: sleeping %v", sleepDuration.String())
+			time.Sleep(sleepDuration)
 		}
 	}()
 }
