@@ -1,6 +1,9 @@
 package main
 
 import (
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"log"
+	"net/http"
 	"os"
 	"fmt"
 	"time"
@@ -13,18 +16,20 @@ import (
 
 const (
 	Author  = "webdevops.io"
-	Version = "0.2.0"
+	Version = "0.3.0"
 	AZURE_KEYVAULT_TAG_PREFIX = "tag_"
 
 )
 
 var (
-	argparser          *flags.Parser
-	args               []string
-	Logger             *DaemonLogger
-	ErrorLogger        *DaemonLogger
-	AzureAuthorizer    autorest.Authorizer
-	AzureSubscriptions []subscriptions.Subscription
+	argparser           *flags.Parser
+	args                []string
+	Logger              *DaemonLogger
+	Verbose             bool
+	AzureAuthorizer     autorest.Authorizer
+	AzureSubscriptions  []subscriptions.Subscription
+
+	collectorGeneralList map[string]*CollectorGeneral
 )
 
 var opts struct {
@@ -34,37 +39,36 @@ var opts struct {
 	// server settings
 	ServerBind  string `          long:"bind"                      env:"SERVER_BIND"                         description:"Server address"                                   default:":8080"`
 	ScrapeTime  time.Duration `   long:"scrape-time"               env:"SCRAPE_TIME"                         description:"Scrape time (time.duration)"                      default:"3h"`
-	ScrapeTimeRand time.Duration `long:"scrape-time-rand"          env:"SCRAPE_TIME_RAND"                    description:"Scrape time randomization (time.duration)"        default:"15m"`
 
 	AzureSubscription  []string ` long:"azure-subscription"        env:"AZURE_SUBSCRIPTION_ID"               description:"Azure Subscription ID"`
 	AzureResourceGroup string `   long:"azure-resourcegroup"       env:"AZURE_RESOURCEGROUP"                 description:"Azure ResourceGroup"`
 	AzureKeyvaultCount int `      long:"azure-keyvalut-count"      env:"AZURE_KEYVAULT_COUNT"                description:"Azure Keyvault count" default:"100"`
 	AzureKeyvaultTag []string `   long:"azure-keyvault-tag"        env:"AZURE_KEYVAULT_TAG"   env-delim:" "  description:"Azure ResourceGroup tags"                         default:"owner"`
-
 }
 
 func main() {
 	initArgparser()
 
+	// set verbosity
+	Verbose = len(opts.Verbose) >= 1
+
 	// Init logger
-	Logger = CreateDaemonLogger(0)
-	ErrorLogger = CreateDaemonErrorLogger(0)
+	Logger = NewLogger(log.Lshortfile, Verbose)
+	defer Logger.Close()
 
 	// set verbosity
 
 	Verbose = len(opts.Verbose) >= 1
-	Logger.Messsage("Init Azure Keyvault exporter v%s (written by %v)", Version, Author)
+	Logger.Infof("Init Azure Keyvault exporter v%s (written by %v)", Version, Author)
 
-	Logger.Messsage("Init Azure connection")
+	Logger.Infof("Init Azure connection")
 	initAzureConnection()
 
-	Logger.Messsage("Starting metrics collection")
-	Logger.Messsage("  scape time: %v", opts.ScrapeTime)
-	Logger.Messsage("  scape rand: %v", opts.ScrapeTimeRand)
-	setupMetrics()
-	startMetricsCollection()
+	Logger.Infof("Starting metrics collection")
+	Logger.Infof("  scape time: %v", opts.ScrapeTime)
+	initMetricCollector()
 
-	Logger.Messsage("Starting http server on %s", opts.ServerBind)
+	Logger.Infof("Starting http server on %s", opts.ServerBind)
 	startHttpServer()
 }
 
@@ -113,5 +117,23 @@ func initAzureConnection() {
 			AzureSubscriptions = append(AzureSubscriptions, result)
 		}
 	}
+}
 
+func initMetricCollector() {
+	var collectorName string
+	collectorGeneralList = map[string]*CollectorGeneral{}
+
+	collectorName = "Keyvault"
+	if opts.ScrapeTime.Seconds() > 0 {
+		collectorGeneralList[collectorName] = NewCollectorGeneral(collectorName, &MetricsCollectorKeyvault{})
+		collectorGeneralList[collectorName].Run(opts.ScrapeTime)
+	} else {
+		Logger.Infof("collector[%s]: disabled", collectorName)
+	}
+}
+
+// start and handle prometheus handler
+func startHttpServer() {
+	http.Handle("/metrics", promhttp.Handler())
+	Logger.Error(http.ListenAndServe(opts.ServerBind, nil))
 }
