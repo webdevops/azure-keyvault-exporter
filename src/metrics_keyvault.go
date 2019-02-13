@@ -52,7 +52,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *CollectorGeneral) {
 				"resourceGroup",
 				"accessible",
 			},
-			prefixSlice(AZURE_KEYVAULT_TAG_PREFIX, opts.AzureKeyvaultTag)...
+			prefixSliceForPrometheusLabels(AZURE_KEYVAULT_TAG_PREFIX, opts.AzureKeyvaultTag)...
 		),
 	)
 

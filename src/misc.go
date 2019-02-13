@@ -10,6 +10,7 @@ import (
 
 var (
 	resourceGroupFromResourceIdRegExp = regexp.MustCompile("/resourceGroups/([^/]*)")
+	azureTagNameToPrometheusNameRegExp = regexp.MustCompile("[^_a-zA-Z0-9]")
 )
 
 func extractResourceGroupFromAzureId (azureId string) (resourceGroup string) {
@@ -34,14 +35,12 @@ func boolToString(b bool) string {
 	return "false"
 }
 
-
 func prefixSlice(prefix string, valueMap []string) (ret []string) {
 	for _, value := range valueMap {
 		ret = append(ret, prefix + value)
 	}
 	return
 }
-
 
 func randomTime(base, randTime time.Duration) time.Duration {
 	sleepTime := int(base.Seconds()) + rand.Intn(int(randTime.Seconds()))
@@ -59,7 +58,7 @@ func timeToFloat64(v time.Time) float64 {
 
 func addAzureResourceTags(labels prometheus.Labels, tags map[string]*string) (prometheus.Labels) {
 	for _, rgTag := range opts.AzureKeyvaultTag {
-		rgTabLabel := AZURE_KEYVAULT_TAG_PREFIX + rgTag
+		rgTabLabel := azureTagNameToPrometheusTagName(AZURE_KEYVAULT_TAG_PREFIX + rgTag)
 
 		if _, ok := tags[rgTag]; ok {
 			labels[rgTabLabel] = *tags[rgTag]
@@ -69,4 +68,15 @@ func addAzureResourceTags(labels prometheus.Labels, tags map[string]*string) (pr
 	}
 
 	return labels
+}
+
+func prefixSliceForPrometheusLabels(prefix string, valueMap []string) (ret []string) {
+	for _, value := range valueMap {
+		ret = append(ret, azureTagNameToPrometheusTagName(prefix + value))
+	}
+	return
+}
+
+func azureTagNameToPrometheusTagName(name string) (string) {
+	return azureTagNameToPrometheusNameRegExp.ReplaceAllLiteralString(name, "_")
 }
