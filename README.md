@@ -16,7 +16,7 @@ Normally no configuration is needed but can be customized using environment vari
 |-----------------------------------|-----------------------------|------------------------------------------------------------------------------|
 | `AZURE_SUBSCRIPTION_ID`           | `empty`                     | Azure Subscription IDs (empty for auto lookup)                               |
 | `AZURE_RESOURCEGROUP`             |                             | Azure ResourceGroup used for collecting informations (filter, empty for all) |
-| `AZURE_KEYVAULT_TAG`              | `owner`                     | Azure Keyvault tag which should be collected (methods available eg. `owner:lower` will transform content lowercase, methods: `lower`, `upper, `title`)  |
+| `AZURE_KEYVAULT_TAG`              | `owner`                     | Azure Keyvault tag which should be collected (methods available eg. `owner:lower` will transform content lowercase, methods: `lower`, `upper`, `title`)  |
 | `SCRAPE_TIME`                     | `3h`                        | Time (time.Duration) between API calls                                       |
 | `SCRAPE_TIME_RAND`                | `15m`                       | Randomization time between scrapes                                           |
 | `SERVER_BIND`                     | `:8080`                     | IP/Port binding                                                              |
