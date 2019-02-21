@@ -52,7 +52,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *CollectorGeneral) {
 				"resourceGroup",
 				"accessible",
 			},
-			prefixSliceForPrometheusLabels(AZURE_KEYVAULT_TAG_PREFIX, opts.AzureKeyvaultTag)...
+			opts.azureKeyvaultTag.prometheusLabels...,
 		),
 	)
 
@@ -442,7 +442,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, callback
 		"resourceGroup": extractResourceGroupFromAzureId(*vault.ID),
 		"accessible": boolToString(status),
 	}
-	vaultLabels = addAzureResourceTags(vaultLabels, vault.Tags)
+	vaultLabels = opts.azureKeyvaultTag.appendPrometheusLabel(vaultLabels, vault.Tags)
 	vaultMetrics.AddInfo(vaultLabels)
 
 

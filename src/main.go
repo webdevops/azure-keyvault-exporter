@@ -44,6 +44,7 @@ var opts struct {
 	AzureResourceGroup string `   long:"azure-resourcegroup"       env:"AZURE_RESOURCEGROUP"                 description:"Azure ResourceGroup"`
 	AzureKeyvaultCount int `      long:"azure-keyvalut-count"      env:"AZURE_KEYVAULT_COUNT"                description:"Azure Keyvault count" default:"100"`
 	AzureKeyvaultTag []string `   long:"azure-keyvault-tag"        env:"AZURE_KEYVAULT_TAG"   env-delim:" "  description:"Azure ResourceGroup tags"                         default:"owner"`
+	azureKeyvaultTag AzureTagFilter
 }
 
 func main() {
@@ -87,6 +88,8 @@ func initArgparser() {
 			os.Exit(1)
 		}
 	}
+
+	opts.azureKeyvaultTag = NewAzureTagFilter(AZURE_KEYVAULT_TAG_PREFIX, opts.AzureKeyvaultTag)
 }
 
 func initAzureConnection() {
