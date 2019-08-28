@@ -188,7 +188,7 @@ func (m *MetricsCollectorKeyvault) Collect(ctx context.Context, callback chan<- 
 			m.collectKeyvault(ctx, callback, subscription, client, vault)
 		}(ctx, subscription, client, keyvaultItem)
 
-		if keyvaultResult.Next() != nil {
+		if keyvaultResult.NextWithContext(ctx) != nil {
 			break
 		}
 
@@ -281,7 +281,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, callback
 			"type": "updated",
 		}, updatedDate)
 
-		if keyResult.Next() != nil {
+		if keyResult.NextWithContext(ctx) != nil {
 			break
 		}
 	}
@@ -353,7 +353,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, callback
 			"type": "updated",
 		}, updatedDate)
 
-		if secretsResult.Next() != nil {
+		if secretsResult.NextWithContext(ctx) != nil {
 			break
 		}
 	}
@@ -425,7 +425,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, callback
 			"type": "updated",
 		}, updatedDate)
 
-		if certificateResult.Next() != nil {
+		if certificateResult.NextWithContext(ctx) != nil {
 			break
 		}
 	}
