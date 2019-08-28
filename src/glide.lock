@@ -1,18 +1,16 @@
 hash: 6ed1ae04c24329253b710063db2d80c353ca7da080bb61ebd1f0b33e220a51ca
-updated: 2019-02-26T23:26:53.696788+01:00
+updated: 2019-08-28T23:00:42.377106+02:00
 imports:
-- name: contrib.go.opencensus.io/exporter/ocagent
-  version: b8ece14a43f0cda76036504e4a4fd7fa27ce1869
 - name: github.com/Azure/azure-sdk-for-go
-  version: 4d7ea88c4dd04df3dff2c3118136a0e1e3bd787d
+  version: 7a4bf9c092dec78d5d2e5615b2b1980cd9445e4b
   subpackages:
   - profiles/latest/resources/mgmt/subscriptions
   - services/keyvault/2016-10-01/keyvault
   - services/keyvault/mgmt/2016-10-01/keyvault
-  - services/resources/mgmt/2016-06-01/subscriptions
+  - services/resources/mgmt/2018-06-01/subscriptions
   - version
 - name: github.com/Azure/go-autorest
-  version: f4369d4c79bf40df5e86def1e0f54c7ef261a51c
+  version: 403aff94c3536f190b71fde971cb66963202f6d3
   subpackages:
   - autorest
   - autorest/adal
@@ -25,152 +23,58 @@ imports:
   - logger
   - tracing
 - name: github.com/beorn7/perks
-  version: 3a771d992973f24aa725d07868b467d1ddfceafb
+  version: 234731a4f01687625231ac651d6b2776e3f3142e
   subpackages:
   - quantile
-- name: github.com/census-instrumentation/opencensus-proto
-  version: b11a67434194733b34c11f206938263fa16ad1cf
-  subpackages:
-  - gen-go/agent/common/v1
-  - gen-go/agent/trace/v1
-  - gen-go/resource/v1
-  - gen-go/trace/v1
 - name: github.com/dgrijalva/jwt-go
   version: 01aeca54ebda6e0fbfafd0a524d234159c05ec20
 - name: github.com/dimchansky/utfbom
-  version: 5448fe645cb1964ba70ac8f9f2ffe975e61a536c
+  version: d2133a1ce379ef6fa992b0514a77146c60db9d1c
 - name: github.com/golang/protobuf
-  version: b4deda0973fb4c70b50d226b1af49f3da59f5265
+  version: b285ee9cfc6c881bb20c0d8dc73370ea9b9ec90f
   subpackages:
   - proto
-  - ptypes
-  - ptypes/any
-  - ptypes/duration
-  - ptypes/timestamp
-  - ptypes/wrappers
 - name: github.com/google/logger
-  version: b1301ce8ed2021a3ad344027d245c708e6ede041
+  version: 03bdf7bcb2c4d98c8fdbf62f1473fb1303ca1c1d
 - name: github.com/jessevdk/go-flags
   version: c0795c8afcf41dd1d786bebce68636c199b3bb45
 - name: github.com/matttproud/golang_protobuf_extensions
-  version: c12348ce28de40eed0136aa2b644d0ee0650e56c
+  version: c182affec369e30f25d3eb8cd8a478dee585ae7d
   subpackages:
   - pbutil
 - name: github.com/mitchellh/go-homedir
-  version: ae18d6b8b3205b561c79e8e5f69bff09736185f4
+  version: af06845cf3004701891bf4fdb884bfe4920b3727
 - name: github.com/prometheus/client_golang
-  version: 2daed26f633ce23fab5efc02fb3f2e803b3526c3
+  version: 35ef65db672a76effef5f0808decd0484a636f3f
   subpackages:
   - prometheus
   - prometheus/internal
   - prometheus/promhttp
 - name: github.com/prometheus/client_model
-  version: 5c3871d89910bfb32f5fcab2aa4b9ec68e65a99f
+  version: fd36f4220a901265f90734c3183c5f0c91daa0b8
   subpackages:
   - go
 - name: github.com/prometheus/common
-  version: 41aa239b4cce3c56ab88fc366ae8b0a6423fa239
+  version: 6125cc8d9fa0ecb5e6acad546bc61e4f093c19b1
   subpackages:
   - expfmt
   - internal/bitbucket.org/ww/goautoneg
   - model
 - name: github.com/prometheus/procfs
-  version: 185b4288413d2a0dd0806f78c90dde719829e5ae
+  version: 1de2bc567d78f4ff415fd103412f7e5ec9e8876b
   subpackages:
-  - internal/util
-  - nfs
-  - xfs
+  - internal/fs
 - name: github.com/satori/go.uuid
   version: b2ce2384e17bbe0c6d34077efa39dbab3e09123b
-- name: go.opencensus.io
-  version: 91a0276ece6ad4cbdc4b46116f88d2b47a5f58e5
-  subpackages:
-  - exemplar
-  - internal
-  - internal/tagencoding
-  - plugin/ochttp
-  - plugin/ochttp/propagation/b3
-  - plugin/ochttp/propagation/tracecontext
-  - stats
-  - stats/internal
-  - stats/view
-  - tag
-  - trace
-  - trace/internal
-  - trace/propagation
-  - trace/tracestate
 - name: golang.org/x/crypto
-  version: de0752318171da717af4ce24d0a2e8626afaeb11
+  version: e84da0312774c21d64ee2317962ef669b27ffb41
   subpackages:
   - pkcs12
   - pkcs12/internal/rc2
-- name: golang.org/x/net
-  version: 0ed95abb35c445290478a5348a7b38bb154135fd
-  subpackages:
-  - context
-  - http2
-  - http2/hpack
-  - idna
-  - internal/timeseries
-  - lex/httplex
-  - trace
-- name: golang.org/x/sync
-  version: 42b317875d0fa942474b76e1b46a6060d720ae6e
-  subpackages:
-  - semaphore
 - name: golang.org/x/sys
-  version: 775f8194d0f9e65c46913c7be783d3d95a29333c
+  version: 7fc4e5ec1444df20dd195ae7c3bbfcd7114d3faa
   subpackages:
-  - unix
   - windows
   - windows/registry
   - windows/svc/eventlog
-- name: golang.org/x/text
-  version: b19bf474d317b857955b12035d2c5acb57ce8b01
-  subpackages:
-  - secure/bidirule
-  - transform
-  - unicode/bidi
-  - unicode/norm
-- name: google.golang.org/api
-  version: 83a9d304b1e613fc253e1e2710778642fe81af53
-  subpackages:
-  - support/bundler
-- name: google.golang.org/genproto
-  version: b5d43981345bdb2c233eb4bf3277847b48c6fdc6
-  subpackages:
-  - googleapis/rpc/status
-- name: google.golang.org/grpc
-  version: 3aaef9f0c1b114366cb4507ba4f3c083b17d2f4e
-  subpackages:
-  - balancer
-  - balancer/base
-  - balancer/roundrobin
-  - binarylog/grpc_binarylog_v1
-  - codes
-  - connectivity
-  - credentials
-  - credentials/internal
-  - encoding
-  - encoding/proto
-  - grpclog
-  - internal
-  - internal/backoff
-  - internal/binarylog
-  - internal/channelz
-  - internal/envconfig
-  - internal/grpcrand
-  - internal/grpcsync
-  - internal/syscall
-  - internal/transport
-  - keepalive
-  - metadata
-  - naming
-  - peer
-  - resolver
-  - resolver/dns
-  - resolver/passthrough
-  - stats
-  - status
-  - tap
 testImports: []
