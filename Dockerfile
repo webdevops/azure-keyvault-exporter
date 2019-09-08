@@ -1,22 +1,22 @@
-FROM golang:1.12 as build
-WORKDIR /go/src/azure-keyvault-exporter/src
-COPY ./src /go/src/azure-keyvault-exporter/src
-RUN curl https://glide.sh/get | sh \
-    && glide install
-RUN mkdir /app/ \
-    && cp -a entrypoint.sh /app/ \
-    && chmod 555 /app/entrypoint.sh \
-    && go build -o /app/azure-keyvault-exporter
+FROM golang:1.13 as build
+
+WORKDIR /go/src/github.com/webdevops/azure-keyvault-exporter
+
+# Get deps (cached)
+COPY ./go.mod /go/src/github.com/webdevops/azure-keyvault-exporter
+COPY ./go.sum /go/src/github.com/webdevops/azure-keyvault-exporter
+RUN go mod download
+
+# Compile
+COPY ./ /go/src/github.com/webdevops/azure-keyvault-exporter
+RUN CGO_ENABLED=0 GOOS=linux go build -a -ldflags '-extldflags "-static"' -o /azure-keyvault-exporter \
+    && chmod +x /azure-keyvault-exporter
+RUN /azure-keyvault-exporter --help
 
 #############################################
 # FINAL IMAGE
 #############################################
-FROM alpine
-RUN apk add --no-cache \
-        libc6-compat \
-    	ca-certificates \
-    	wget \
-    	curl
-COPY --from=build /app/ /app/
+FROM gcr.io/distroless/static
+COPY --from=build /azure-keyvault-exporter /
 USER 1000
-ENTRYPOINT ["/app/entrypoint.sh"]
+ENTRYPOINT ["/azure-keyvault-exporter"]
