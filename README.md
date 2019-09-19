@@ -36,3 +36,12 @@ Metrics
 | `azurerm_keyvault_certificate_info`    | General inforamtions about certificate                                                |
 | `azurerm_keyvault_certificate_status`  | Status informations (notBefore & expiry date)                                         |
 
+
+Install
+-------
+```bash
+go get -u github.com/webdevops/azure-keyvault-exporter
+```
+
+
+
