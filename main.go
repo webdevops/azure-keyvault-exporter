@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"log"
 	"net/http"
@@ -45,6 +46,7 @@ var opts struct {
 	AzureKeyvaultCount int `      long:"azure-keyvalut-count"      env:"AZURE_KEYVAULT_COUNT"                description:"Azure Keyvault count" default:"100"`
 	AzureKeyvaultTag []string `   long:"azure-keyvault-tag"        env:"AZURE_KEYVAULT_TAG"   env-delim:" "  description:"Azure ResourceGroup tags"                         default:"owner"`
 	azureKeyvaultTag AzureTagFilter
+	azureEnvironment azure.Environment
 }
 
 func main() {
@@ -120,6 +122,18 @@ func initAzureConnection() {
 			AzureSubscriptions = append(AzureSubscriptions, result)
 		}
 	}
+
+	// try to get cloud name, defaults to public cloud name
+	azureEnvName := azure.PublicCloud.Name
+	if env := os.Getenv("AZURE_ENVIRONMENT"); env != "" {
+		azureEnvName = env
+	}
+
+	opts.azureEnvironment, err = azure.EnvironmentFromName(azureEnvName)
+	if err != nil {
+		panic(err)
+	}
+
 }
 
 func initMetricCollector() {
