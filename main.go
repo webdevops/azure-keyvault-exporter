@@ -17,7 +17,7 @@ import (
 
 const (
 	Author  = "webdevops.io"
-	Version = "0.6.0"
+	Version = "0.6.1"
 	AZURE_KEYVAULT_TAG_PREFIX = "tag_"
 
 )
