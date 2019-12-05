@@ -29,6 +29,7 @@ Metrics
 | Metric                                 | Description                                                                           |
 |----------------------------------------|---------------------------------------------------------------------------------------|
 | `azurerm_keyvault_info`                | Azure KeyVault informations                                                           |
+| `azurerm_keyvault_status`              | Azure KeyVault status informations (eg. if accessable from exporter)                  |
 | `azurerm_keyvault_key_info`            | General inforamtions about keys                                                       |
 | `azurerm_keyvault_key_status`          | Status informations (notBefore & expiry date)                                         |
 | `azurerm_keyvault_secret_info`         | General inforamtions about secrets                                                    |
