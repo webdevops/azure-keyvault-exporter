@@ -33,7 +33,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *CollectorGeneral) {
 	var err error
 	m.CollectorReference = collector
 
-	m.keyvaultAuth, err = auth.NewAuthorizerFromEnvironmentWithResource(opts.azureEnvironment.GraphEndpoint)
+	m.keyvaultAuth, err = auth.NewAuthorizerFromEnvironmentWithResource(opts.azureEnvironment.ResourceIdentifiers.KeyVault)
 	if err != nil {
 		panic(err)
 	}
