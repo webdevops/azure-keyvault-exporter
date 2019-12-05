@@ -11,7 +11,7 @@ var (
 	resourceGroupFromResourceIdRegExp = regexp.MustCompile("/resourceGroups/([^/]*)")
 )
 
-func extractResourceGroupFromAzureId (azureId string) (resourceGroup string) {
+func extractResourceGroupFromAzureId(azureId string) (resourceGroup string) {
 	if subMatch := resourceGroupFromResourceIdRegExp.FindStringSubmatch(azureId); len(subMatch) >= 1 {
 		resourceGroup = subMatch[1]
 	}
@@ -35,7 +35,7 @@ func boolToString(b bool) string {
 
 func prefixSlice(prefix string, valueMap []string) (ret []string) {
 	for _, value := range valueMap {
-		ret = append(ret, prefix + value)
+		ret = append(ret, prefix+value)
 	}
 	return
 }

@@ -16,10 +16,10 @@ type CollectorProcessorGeneral struct {
 	CollectorReference *CollectorGeneral
 }
 
-func NewCollectorGeneral(name string, processor CollectorProcessorGeneralInterface) (*CollectorGeneral) {
+func NewCollectorGeneral(name string, processor CollectorProcessorGeneralInterface) *CollectorGeneral {
 	collector := CollectorGeneral{
 		CollectorBase: CollectorBase{
-			Name: name,
+			Name:               name,
 			AzureSubscriptions: AzureSubscriptions,
 		},
 

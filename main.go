@@ -1,52 +1,51 @@
 package main
 
 import (
+	"context"
+	"fmt"
+	"github.com/Azure/azure-sdk-for-go/profiles/latest/resources/mgmt/subscriptions"
+	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
+	"github.com/Azure/go-autorest/autorest/azure/auth"
+	"github.com/jessevdk/go-flags"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"log"
 	"net/http"
 	"os"
-	"fmt"
 	"time"
-	"context"
-	"github.com/Azure/azure-sdk-for-go/profiles/latest/resources/mgmt/subscriptions"
-	"github.com/Azure/go-autorest/autorest"
-	"github.com/Azure/go-autorest/autorest/azure/auth"
-	"github.com/jessevdk/go-flags"
 )
 
 const (
-	Author  = "webdevops.io"
-	Version = "0.6.1"
+	Author                    = "webdevops.io"
+	Version                   = "0.6.1"
 	AZURE_KEYVAULT_TAG_PREFIX = "tag_"
-
 )
 
 var (
-	argparser           *flags.Parser
-	args                []string
-	Logger              *DaemonLogger
-	Verbose             bool
-	AzureAuthorizer     autorest.Authorizer
-	AzureSubscriptions  []subscriptions.Subscription
+	argparser          *flags.Parser
+	args               []string
+	Logger             *DaemonLogger
+	Verbose            bool
+	AzureAuthorizer    autorest.Authorizer
+	AzureSubscriptions []subscriptions.Subscription
 
 	collectorGeneralList map[string]*CollectorGeneral
 )
 
 var opts struct {
 	// general settings
-	Verbose     []bool `          long:"verbose" short:"v"         env:"VERBOSE"                             description:"Verbose mode"`
+	Verbose []bool `          long:"verbose" short:"v"         env:"VERBOSE"                             description:"Verbose mode"`
 
 	// server settings
-	ServerBind  string `          long:"bind"                      env:"SERVER_BIND"                         description:"Server address"                                   default:":8080"`
-	ScrapeTime  time.Duration `   long:"scrape-time"               env:"SCRAPE_TIME"                         description:"Scrape time (time.duration)"                      default:"3h"`
+	ServerBind string        `          long:"bind"                      env:"SERVER_BIND"                         description:"Server address"                                   default:":8080"`
+	ScrapeTime time.Duration `   long:"scrape-time"               env:"SCRAPE_TIME"                         description:"Scrape time (time.duration)"                      default:"3h"`
 
 	AzureSubscription  []string ` long:"azure-subscription"        env:"AZURE_SUBSCRIPTION_ID"               description:"Azure Subscription ID"`
-	AzureResourceGroup string `   long:"azure-resourcegroup"       env:"AZURE_RESOURCEGROUP"                 description:"Azure ResourceGroup"`
-	AzureKeyvaultCount int `      long:"azure-keyvalut-count"      env:"AZURE_KEYVAULT_COUNT"                description:"Azure Keyvault count" default:"100"`
-	AzureKeyvaultTag []string `   long:"azure-keyvault-tag"        env:"AZURE_KEYVAULT_TAG"   env-delim:" "  description:"Azure ResourceGroup tags"                         default:"owner"`
-	azureKeyvaultTag AzureTagFilter
-	azureEnvironment azure.Environment
+	AzureResourceGroup string   `   long:"azure-resourcegroup"       env:"AZURE_RESOURCEGROUP"                 description:"Azure ResourceGroup"`
+	AzureKeyvaultCount int      `      long:"azure-keyvalut-count"      env:"AZURE_KEYVAULT_COUNT"                description:"Azure Keyvault count" default:"100"`
+	AzureKeyvaultTag   []string `   long:"azure-keyvault-tag"        env:"AZURE_KEYVAULT_TAG"   env-delim:" "  description:"Azure ResourceGroup tags"                         default:"owner"`
+	azureKeyvaultTag   AzureTagFilter
+	azureEnvironment   azure.Environment
 }
 
 func main() {
