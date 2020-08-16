@@ -1,4 +1,4 @@
-FROM golang:1.13 as build
+FROM golang:1.15 as build
 
 WORKDIR /go/src/github.com/webdevops/azure-keyvault-exporter
 
