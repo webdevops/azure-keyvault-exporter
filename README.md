@@ -20,12 +20,12 @@ Application Options:
       --debug                debug mode [$DEBUG]
   -v, --verbose              verbose mode [$VERBOSE]
       --log.json             Switch log output to json format [$LOG_JSON]
-      --azure-environment=   Azure environment name (default: AZUREPUBLICCLOUD) [$AZURE_ENVIRONMENT]
-      --azure-subscription=  Azure subscription ID [$AZURE_SUBSCRIPTION_ID]
-      --azure-location=      Azure locations (default: westeurope, northeurope) [$AZURE_LOCATION]
-      --azure-resourcegroup= Azure ResourceGroup [$AZURE_RESOURCEGROUP]
-      --azure-resource-tag=  Azure Resource tags (default: owner) [$AZURE_RESOURCE_TAG]
-      --scrape-time=         Default scrape time (time.duration) (default: 5m) [$SCRAPE_TIME]
+      --azure.environment=   Azure environment name (default: AZUREPUBLICCLOUD) [$AZURE_ENVIRONMENT]
+      --azure.subscription=  Azure subscription ID [$AZURE_SUBSCRIPTION_ID]
+      --azure.location=      Azure locations (default: westeurope, northeurope) [$AZURE_LOCATION]
+      --azure.resourcegroup= Azure ResourceGroup [$AZURE_RESOURCEGROUP]
+      --azure.resource-tag=  Azure Resource tags (default: owner) [$AZURE_RESOURCE_TAG]
+      --scrape.time=         Default scrape time (time.duration) (default: 5m) [$SCRAPE_TIME]
       --bind=                Server address (default: :8080) [$SERVER_BIND]
 
 Help Options:
