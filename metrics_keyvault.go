@@ -10,9 +10,9 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
+	prometheusCommon "github.com/webdevops/go-prometheus-common"
 	"sync"
 	"time"
-	prometheusCommon "github.com/webdevops/go-prometheus-common"
 )
 
 type MetricsCollectorKeyvault struct {
@@ -352,7 +352,6 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 			"scope":          "secrets",
 		}, 1)
 	}
-
 
 	for secretsResult.NotDone() {
 		item := secretsResult.Value()

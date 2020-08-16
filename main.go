@@ -9,8 +9,8 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/jessevdk/go-flags"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/webdevops/azure-keyvault-exporter/config"
 	log "github.com/sirupsen/logrus"
+	"github.com/webdevops/azure-keyvault-exporter/config"
 	"net/http"
 	"os"
 	"path"
@@ -30,8 +30,8 @@ var (
 	AzureAuthorizer    autorest.Authorizer
 	AzureSubscriptions []subscriptions.Subscription
 
-	azureKeyvaultTag   AzureTagFilter
-	azureEnvironment   azure.Environment
+	azureKeyvaultTag AzureTagFilter
+	azureEnvironment azure.Environment
 
 	collectorGeneralList map[string]*CollectorGeneral
 
@@ -39,6 +39,7 @@ var (
 	gitCommit = "<unknown>"
 	gitTag    = "<unknown>"
 )
+
 func main() {
 	initArgparser()
 
