@@ -30,7 +30,3 @@ func NewCollectorGeneral(name string, processor CollectorProcessorGeneralInterfa
 
 	return &collector
 }
-
-func (c *CollectorProcessorGeneral) logger() *log.Entry {
-	return c.CollectorReference.logger
-}
