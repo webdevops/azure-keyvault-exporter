@@ -39,12 +39,13 @@ Metrics
 
 | Metric                                 | Description                                                                           |
 |----------------------------------------|---------------------------------------------------------------------------------------|
-| `azurerm_keyvault_info`                | Azure KeyVault informations                                                           |
-| `azurerm_keyvault_status`              | Azure KeyVault status informations (eg. if accessable from exporter)                  |
+| `azurerm_keyvault_info`                | Azure KeyVault information                                                            |
+| `azurerm_keyvault_status`              | Azure KeyVault status information (eg. if accessable from exporter)                   |
 | `azurerm_keyvault_key_info`            | General inforamtions about keys                                                       |
-| `azurerm_keyvault_key_status`          | Status informations (notBefore & expiry date)                                         |
+| `azurerm_keyvault_key_status`          | Status information (notBefore & expiry date)                                          |
 | `azurerm_keyvault_secret_info`         | General inforamtions about secrets                                                    |
-| `azurerm_keyvault_secret_status`       | Status informations (notBefore & expiry date)                                         |
+| `azurerm_keyvault_secret_status`       | Status information (notBefore & expiry date)                                          |
 | `azurerm_keyvault_certificate_info`    | General inforamtions about certificate                                                |
-| `azurerm_keyvault_certificate_status`  | Status informations (notBefore & expiry date)                                         |
+| `azurerm_keyvault_certificate_status`  | Status information (notBefore & expiry date)                                          |
+| `azurerm_ratelimit`                    | Azure API ratelimit information (from last api call)                                  |
 
