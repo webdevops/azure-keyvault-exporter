@@ -175,7 +175,7 @@ func (m *MetricsCollectorKeyvault) Collect(ctx context.Context, logger *log.Entr
 	var err error
 	var wg sync.WaitGroup
 
-	keyvaultClient := keyvaultMgmt.NewVaultsClient(*subscription.SubscriptionID)
+	keyvaultClient := keyvaultMgmt.NewVaultsClientWithBaseURI(azureEnvironment.KeyVaultEndpoint, *subscription.SubscriptionID)
 	keyvaultClient.Authorizer = AzureAuthorizer
 
 	if opts.Azure.ResourceGroup != "" {
