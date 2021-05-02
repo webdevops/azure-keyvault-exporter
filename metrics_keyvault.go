@@ -8,6 +8,7 @@ import (
 	keyvaultMgmt "github.com/Azure/azure-sdk-for-go/services/keyvault/mgmt/2016-10-01/keyvault"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
+	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	prometheusCommon "github.com/webdevops/go-prometheus-common"
@@ -192,7 +193,7 @@ func (m *MetricsCollectorKeyvault) Collect(ctx context.Context, logger *log.Entr
 	for keyvaultResult.NotDone() {
 		keyvaultItem := keyvaultResult.Value()
 
-		contextLogger := logger.WithField("keyvault", *keyvaultItem.Name)
+		contextLogger := logger.WithField("keyvault", to.String(keyvaultItem.Name))
 
 		client := keyvault.New()
 		client.Authorizer = m.keyvaultAuth
@@ -227,17 +228,17 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 	vaultCertificateMetrics := prometheusCommon.NewMetricsList()
 	vaultCertificateStatusMetrics := prometheusCommon.NewMetricsList()
 
-	vaultUrl := fmt.Sprintf("https://%s.%s", *vault.Name, azureEnvironment.KeyVaultDNSSuffix)
+	vaultUrl := fmt.Sprintf("https://%s.%s", to.String(vault.Name), azureEnvironment.KeyVaultDNSSuffix)
 
 	// ########################
 	// Keyvault
 	// ########################
 
 	vaultLabels := prometheus.Labels{
-		"subscriptionID": *subscription.SubscriptionID,
-		"resourceID":     *vault.ID,
-		"vaultName":      *vault.Name,
-		"location":       *vault.Location,
+		"subscriptionID": to.String(subscription.SubscriptionID),
+		"resourceID":     to.String(vault.ID),
+		"vaultName":      to.String(vault.Name),
+		"location":       to.String(vault.Location),
 		"resourceGroup":  extractResourceGroupFromAzureId(*vault.ID),
 	}
 	vaultLabels = azureKeyvaultTag.appendPrometheusLabel(vaultLabels, vault.Tags)
@@ -251,17 +252,17 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 	if err != nil {
 		logger.Warning(err)
 		vaultStatusMetrics.Add(prometheus.Labels{
-			"subscriptionID": *subscription.SubscriptionID,
-			"resourceID":     *vault.ID,
-			"vaultName":      *vault.Name,
+			"subscriptionID": to.String(subscription.SubscriptionID),
+			"resourceID":     to.String(vault.ID),
+			"vaultName":      to.String(vault.Name),
 			"type":           "access",
 			"scope":          "keys",
 		}, 0)
 	} else {
 		vaultStatusMetrics.Add(prometheus.Labels{
-			"subscriptionID": *subscription.SubscriptionID,
-			"resourceID":     *vault.ID,
-			"vaultName":      *vault.Name,
+			"subscriptionID": to.String(subscription.SubscriptionID),
+			"resourceID":     to.String(vault.ID),
+			"vaultName":      to.String(vault.Name),
 			"type":           "access",
 			"scope":          "keys",
 		}, 1)
@@ -271,8 +272,8 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		item := keyResult.Value()
 
 		vaultKeyMetrics.AddInfo(prometheus.Labels{
-			"vaultName": *vault.Name,
-			"keyID":     *item.Kid,
+			"vaultName": to.String(vault.Name),
+			"keyID":     to.String(item.Kid),
 			"enabled":   boolToString(*item.Attributes.Enabled),
 		})
 
@@ -283,8 +284,8 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 			expiryDate = float64(timestamp.Unix())
 		}
 		vaultKeyStatusMetrics.Add(prometheus.Labels{
-			"vaultName": *vault.Name,
-			"keyID":     *item.Kid,
+			"vaultName": to.String(vault.Name),
+			"keyID":     to.String(item.Kid),
 			"type":      "expiry",
 		}, expiryDate)
 
@@ -295,8 +296,8 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 			notBeforeDate = float64(timestamp.Unix())
 		}
 		vaultKeyStatusMetrics.Add(prometheus.Labels{
-			"vaultName": *vault.Name,
-			"keyID":     *item.Kid,
+			"vaultName": to.String(vault.Name),
+			"keyID":     to.String(item.Kid),
 			"type":      "notBefore",
 		}, notBeforeDate)
 
@@ -307,8 +308,8 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 			createdDate = float64(timestamp.Unix())
 		}
 		vaultKeyStatusMetrics.Add(prometheus.Labels{
-			"vaultName": *vault.Name,
-			"keyID":     *item.Kid,
+			"vaultName": to.String(vault.Name),
+			"keyID":     to.String(item.Kid),
 			"type":      "created",
 		}, createdDate)
 
@@ -319,8 +320,8 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 			updatedDate = float64(timestamp.Unix())
 		}
 		vaultKeyStatusMetrics.Add(prometheus.Labels{
-			"vaultName": *vault.Name,
-			"keyID":     *item.Kid,
+			"vaultName": to.String(vault.Name),
+			"keyID":     to.String(item.Kid),
 			"type":      "updated",
 		}, updatedDate)
 
@@ -337,17 +338,17 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 	if err != nil {
 		logger.Warning(err)
 		vaultStatusMetrics.Add(prometheus.Labels{
-			"subscriptionID": *subscription.SubscriptionID,
-			"resourceID":     *vault.ID,
-			"vaultName":      *vault.Name,
+			"subscriptionID": to.String(subscription.SubscriptionID),
+			"resourceID":     to.String(vault.ID),
+			"vaultName":      to.String(vault.Name),
 			"type":           "access",
 			"scope":          "secrets",
 		}, 0)
 	} else {
 		vaultStatusMetrics.Add(prometheus.Labels{
-			"subscriptionID": *subscription.SubscriptionID,
-			"resourceID":     *vault.ID,
-			"vaultName":      *vault.Name,
+			"subscriptionID": to.String(subscription.SubscriptionID),
+			"resourceID":     to.String(vault.ID),
+			"vaultName":      to.String(vault.Name),
 			"type":           "access",
 			"scope":          "secrets",
 		}, 1)
@@ -357,9 +358,9 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		item := secretsResult.Value()
 
 		vaultSecretMetrics.AddInfo(prometheus.Labels{
-			"vaultName": *vault.Name,
-			"secretID":  *item.ID,
-			"enabled":   boolToString(*item.Attributes.Enabled),
+			"vaultName": to.String(vault.Name),
+			"secretID":  to.String(item.ID),
+			"enabled":   boolToString(to.Bool(item.Attributes.Enabled)),
 		})
 
 		// expiry date
@@ -369,8 +370,8 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 			expiryDate = float64(timestamp.Unix())
 		}
 		vaultSecretStatusMetrics.Add(prometheus.Labels{
-			"vaultName": *vault.Name,
-			"secretID":  *item.ID,
+			"vaultName": to.String(vault.Name),
+			"secretID":  to.String(item.ID),
 			"type":      "expiry",
 		}, expiryDate)
 
@@ -381,8 +382,8 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 			notBeforeDate = float64(timestamp.Unix())
 		}
 		vaultSecretStatusMetrics.Add(prometheus.Labels{
-			"vaultName": *vault.Name,
-			"secretID":  *item.ID,
+			"vaultName": to.String(vault.Name),
+			"secretID":  to.String(item.ID),
 			"type":      "notBefore",
 		}, notBeforeDate)
 
@@ -393,8 +394,8 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 			createdDate = float64(timestamp.Unix())
 		}
 		vaultSecretStatusMetrics.Add(prometheus.Labels{
-			"vaultName": *vault.Name,
-			"secretID":  *item.ID,
+			"vaultName": to.String(vault.Name),
+			"secretID":  to.String(item.ID),
 			"type":      "created",
 		}, createdDate)
 
@@ -405,8 +406,8 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 			updatedDate = float64(timestamp.Unix())
 		}
 		vaultSecretStatusMetrics.Add(prometheus.Labels{
-			"vaultName": *vault.Name,
-			"secretID":  *item.ID,
+			"vaultName": to.String(vault.Name),
+			"secretID":  to.String(item.ID),
 			"type":      "updated",
 		}, updatedDate)
 
@@ -423,17 +424,17 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 	if err != nil {
 		logger.Warning(err)
 		vaultStatusMetrics.Add(prometheus.Labels{
-			"subscriptionID": *subscription.SubscriptionID,
-			"resourceID":     *vault.ID,
-			"vaultName":      *vault.Name,
+			"subscriptionID": to.String(subscription.SubscriptionID),
+			"resourceID":     to.String(vault.ID),
+			"vaultName":      to.String(vault.Name),
 			"type":           "access",
 			"scope":          "certificates",
 		}, 0)
 	} else {
 		vaultStatusMetrics.Add(prometheus.Labels{
-			"subscriptionID": *subscription.SubscriptionID,
-			"resourceID":     *vault.ID,
-			"vaultName":      *vault.Name,
+			"subscriptionID": to.String(subscription.SubscriptionID),
+			"resourceID":     to.String(vault.ID),
+			"vaultName":      to.String(vault.Name),
 			"type":           "access",
 			"scope":          "certificates",
 		}, 1)
@@ -443,9 +444,9 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		item := certificateResult.Value()
 
 		vaultCertificateMetrics.AddInfo(prometheus.Labels{
-			"vaultName":     *vault.Name,
-			"certificateID": *item.ID,
-			"enabled":       boolToString(*item.Attributes.Enabled),
+			"vaultName":     to.String(vault.Name),
+			"certificateID": to.String(item.ID),
+			"enabled":       boolToString(to.Bool(item.Attributes.Enabled)),
 		})
 
 		// expiry
@@ -455,8 +456,8 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 			expiryDate = float64(timestamp.Unix())
 		}
 		vaultCertificateStatusMetrics.Add(prometheus.Labels{
-			"vaultName":     *vault.Name,
-			"certificateID": *item.ID,
+			"vaultName":     to.String(vault.Name),
+			"certificateID": to.String(item.ID),
 			"type":          "expiry",
 		}, expiryDate)
 
@@ -467,8 +468,8 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 			notBeforeDate = float64(timestamp.Unix())
 		}
 		vaultCertificateStatusMetrics.Add(prometheus.Labels{
-			"vaultName":     *vault.Name,
-			"certificateID": *item.ID,
+			"vaultName":     to.String(vault.Name),
+			"certificateID": to.String(item.ID),
 			"type":          "notBefore",
 		}, notBeforeDate)
 
@@ -479,8 +480,8 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 			createdDate = float64(timestamp.Unix())
 		}
 		vaultCertificateStatusMetrics.Add(prometheus.Labels{
-			"vaultName":     *vault.Name,
-			"certificateID": *item.ID,
+			"vaultName":     to.String(vault.Name),
+			"certificateID": to.String(item.ID),
 			"type":          "created",
 		}, createdDate)
 
@@ -491,8 +492,8 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 			updatedDate = float64(timestamp.Unix())
 		}
 		vaultCertificateStatusMetrics.Add(prometheus.Labels{
-			"vaultName":     *vault.Name,
-			"certificateID": *item.ID,
+			"vaultName":     to.String(vault.Name),
+			"certificateID": to.String(item.ID),
 			"type":          "updated",
 		}, updatedDate)
 
