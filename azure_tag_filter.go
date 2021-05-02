@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"github.com/prometheus/client_golang/prometheus"
+	log "github.com/sirupsen/logrus"
 	"regexp"
 	"strings"
 )
@@ -75,7 +76,7 @@ func (t *AzureTagFilter) filterTags(tags map[string]*string, usePrometheusName b
 				case "title":
 					filterTagValue = strings.ToTitle(filterTagValue)
 				default:
-					panic(fmt.Sprintf("Unknown filter method \"%v\" specified for tag \"%v\"", method, filterTag.name))
+					log.Panic(fmt.Sprintf("unknown filter method \"%v\" specified for tag \"%v\"", method, filterTag.name))
 				}
 			}
 		}

@@ -176,6 +176,7 @@ func startHttpServer() {
 	http.Handle("/metrics", promhttp.Handler())
 	log.Error(http.ListenAndServe(opts.ServerBind, nil))
 }
+
 func azureResponseInspector(subscription *subscriptions.Subscription) autorest.RespondDecorator {
 	subscriptionId := ""
 	if subscription != nil {
