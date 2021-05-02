@@ -5,7 +5,7 @@ import (
 )
 
 var (
-	resourceGroupFromResourceIdRegExp = regexp.MustCompile("/resourceGroups/([^/]*)")
+	resourceGroupFromResourceIdRegExp = regexp.MustCompile("/subscriptions/[^/]+/resourceGroups/([^/]*)")
 )
 
 func extractResourceGroupFromAzureId(azureId string) (resourceGroup string) {
