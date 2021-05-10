@@ -105,6 +105,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *CollectorGeneral) {
 		[]string{
 			"resourceID",
 			"vaultName",
+			"keyName",
 			"keyID",
 			"enabled",
 		},
@@ -135,6 +136,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *CollectorGeneral) {
 		[]string{
 			"resourceID",
 			"vaultName",
+			"secretName",
 			"secretID",
 			"enabled",
 		},
@@ -165,6 +167,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *CollectorGeneral) {
 		[]string{
 			"resourceID",
 			"vaultName",
+			"certificateName",
 			"certificateID",
 			"enabled",
 		},
@@ -307,6 +310,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		vaultKeyMetrics.AddInfo(prometheus.Labels{
 			"resourceID": vaultResourceId,
 			"vaultName":  vaultName,
+			"keyName":    parseKeyvaultObjectName(to.String(item.Kid)),
 			"keyID":      to.String(item.Kid),
 			"enabled":    boolToString(*item.Attributes.Enabled),
 		})
@@ -397,6 +401,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		vaultSecretMetrics.AddInfo(prometheus.Labels{
 			"resourceID": vaultResourceId,
 			"vaultName":  vaultName,
+			"secretName": parseKeyvaultObjectName(to.String(item.ID)),
 			"secretID":   to.String(item.ID),
 			"enabled":    boolToString(to.Bool(item.Attributes.Enabled)),
 		})
@@ -485,10 +490,11 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		entryCertsCount++
 
 		vaultCertificateMetrics.AddInfo(prometheus.Labels{
-			"resourceID":    vaultResourceId,
-			"vaultName":     vaultName,
-			"certificateID": to.String(item.ID),
-			"enabled":       boolToString(to.Bool(item.Attributes.Enabled)),
+			"resourceID":      vaultResourceId,
+			"vaultName":       vaultName,
+			"certificateName": parseKeyvaultObjectName(to.String(item.ID)),
+			"certificateID":   to.String(item.ID),
+			"enabled":         boolToString(to.Bool(item.Attributes.Enabled)),
 		})
 
 		// expiry

@@ -5,7 +5,8 @@ import (
 )
 
 var (
-	resourceGroupFromResourceIdRegExp = regexp.MustCompile("/subscriptions/[^/]+/resourceGroups/([^/]*)")
+	resourceGroupFromResourceIdRegExp = regexp.MustCompile(`/subscriptions/[^/]+/resourceGroups/([^/]*)`)
+	keyvaultObjectNameRegExp          = regexp.MustCompile(`^https://[^/]+/[^/]+/([^/]+)(/?|/.*)`)
 )
 
 func extractResourceGroupFromAzureId(azureId string) (resourceGroup string) {
@@ -21,4 +22,12 @@ func boolToString(b bool) string {
 		return "true"
 	}
 	return "false"
+}
+
+func parseKeyvaultObjectName(objectId string) (objectName string) {
+	if subMatch := keyvaultObjectNameRegExp.FindStringSubmatch(objectId); len(subMatch) >= 1 {
+		objectName = subMatch[1]
+	}
+
+	return
 }
