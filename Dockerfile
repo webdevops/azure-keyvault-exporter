@@ -21,5 +21,5 @@ RUN ./azure-keyvault-exporter --help
 FROM gcr.io/distroless/static
 ENV LOG_JSON=1
 COPY --from=build /go/src/github.com/webdevops/azure-keyvault-exporter/azure-keyvault-exporter /
-USER 1000
+USER 1000:1000
 ENTRYPOINT ["/azure-keyvault-exporter"]
