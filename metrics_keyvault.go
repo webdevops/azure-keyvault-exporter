@@ -11,6 +11,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	prometheusCommon "github.com/webdevops/go-prometheus-common"
+	"strings"
 	"sync"
 	"time"
 )
@@ -260,7 +261,11 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 	vaultCertificateStatusMetrics := prometheusCommon.NewMetricsList()
 
 	vaultUrl := to.String(vault.Properties.VaultURI)
+
 	vaultResourceId := to.String(vault.ID)
+	if opts.Metrics.ResourceIdLowercase {
+		vaultResourceId = strings.ToLower(vaultResourceId)
+	}
 	vaultName := to.String(vault.Name)
 
 	entrySecretsCount := float64(0)

@@ -24,6 +24,10 @@ type (
 			ResourceTags  []string `long:"azure.resource-tag"      env:"AZURE_RESOURCE_TAG"        env-delim:" "  description:"Azure Resource tags"                              default:"owner"`
 		}
 
+		Metrics struct {
+			ResourceIdLowercase bool `long:"metrics.resourceid.lowercase"   env:"METRIC_RESOURCEID_LOWERCASE"       description:"Publish lowercase Azure Resoruce ID in metrics"`
+		}
+
 		// scrape times
 		Scrape struct {
 			Time time.Duration `long:"scrape.time"                    env:"SCRAPE_TIME"                    description:"Default scrape time (time.duration)"                      default:"5m"`
