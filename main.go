@@ -119,7 +119,13 @@ func initAzureConnection() {
 	if err != nil {
 		panic(err)
 	}
-	subscriptionsClient := subscriptions.NewClient()
+
+	azureEnvironment, err = azure.EnvironmentFromName(*opts.Azure.Environment)
+	if err != nil {
+		log.Panic(err)
+	}
+
+	subscriptionsClient := subscriptions.NewClientWithBaseURI(azureEnvironment.ResourceManagerEndpoint)
 	subscriptionsClient.Authorizer = AzureAuthorizer
 
 	if len(opts.Azure.Subscription) == 0 {
@@ -137,11 +143,6 @@ func initAzureConnection() {
 			}
 			AzureSubscriptions = append(AzureSubscriptions, result)
 		}
-	}
-
-	azureEnvironment, err = azure.EnvironmentFromName(*opts.Azure.Environment)
-	if err != nil {
-		log.Panic(err)
 	}
 }
 
