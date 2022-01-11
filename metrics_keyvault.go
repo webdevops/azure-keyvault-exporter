@@ -225,7 +225,11 @@ func (m *MetricsCollectorKeyvault) Collect(ctx context.Context, logger *log.Entr
 	for keyvaultResult.NotDone() {
 		keyvaultItem := keyvaultResult.Value()
 
-		contextLogger := logger.WithField("keyvault", to.String(keyvaultItem.Name))
+		contextLogger := logger.WithFields(log.Fields{
+			"keyvault":      to.String(keyvaultItem.Name),
+			"location":      to.String(keyvaultItem.Location),
+			"resourceGroup": extractResourceGroupFromAzureId(*keyvaultItem.ID),
+		})
 
 		client := keyvault.New()
 		client.Authorizer = m.keyvaultAuth
