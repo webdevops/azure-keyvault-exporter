@@ -8,21 +8,22 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/jessevdk/go-flags"
-	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
 	"github.com/webdevops/azure-keyvault-exporter/config"
+	"github.com/webdevops/go-prometheus-common/azuretracing"
 	"net/http"
 	"os"
 	"path"
 	"runtime"
-	"strconv"
 	"strings"
 )
 
 const (
 	Author                    = "webdevops.io"
 	AZURE_KEYVAULT_TAG_PREFIX = "tag_"
+
+	UserAgent = "azure-keyvault-exporter/"
 )
 
 var (
@@ -34,8 +35,6 @@ var (
 
 	azureKeyvaultTag AzureTagFilter
 	azureEnvironment azure.Environment
-
-	prometheusMetricApiQuota *prometheus.GaugeVec
 
 	collectorGeneralList map[string]*CollectorGeneral
 
@@ -126,7 +125,7 @@ func initAzureConnection() {
 	}
 
 	subscriptionsClient := subscriptions.NewClientWithBaseURI(azureEnvironment.ResourceManagerEndpoint)
-	subscriptionsClient.Authorizer = AzureAuthorizer
+	decorateAzureClient(&subscriptionsClient.Client, AzureAuthorizer)
 
 	if len(opts.Azure.Subscription) == 0 {
 		listResult, err := subscriptionsClient.List(ctx)
@@ -150,19 +149,6 @@ func initMetricCollector() {
 	var collectorName string
 	collectorGeneralList = map[string]*CollectorGeneral{}
 
-	prometheusMetricApiQuota = prometheus.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Name: "azurerm_ratelimit",
-			Help: "Azure ResourceManager ratelimit",
-		},
-		[]string{
-			"subscriptionID",
-			"scope",
-			"type",
-		},
-	)
-	prometheus.MustRegister(prometheusMetricApiQuota)
-
 	collectorName = "Keyvault"
 	if opts.Scrape.Time.Seconds() > 0 {
 		collectorGeneralList[collectorName] = NewCollectorGeneral(collectorName, &MetricsCollectorKeyvault{})
@@ -174,35 +160,22 @@ func initMetricCollector() {
 
 // start and handle prometheus handler
 func startHttpServer() {
-	http.Handle("/metrics", promhttp.Handler())
+	// healthz
+	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		if _, err := fmt.Fprint(w, "Ok"); err != nil {
+			log.Error(err)
+		}
+	})
+
+	http.Handle("/metrics", azuretracing.RegisterAzureMetricAutoClean(promhttp.Handler()))
 	log.Error(http.ListenAndServe(opts.ServerBind, nil))
 }
 
-func azureResponseInspector(subscription *subscriptions.Subscription) autorest.RespondDecorator {
-	subscriptionId := ""
-	if subscription != nil {
-		subscriptionId = *subscription.SubscriptionID
+func decorateAzureClient(client *autorest.Client, authorizer autorest.Authorizer) {
+	client.Authorizer = authorizer
+	if err := client.AddToUserAgent(UserAgent + gitTag); err != nil {
+		log.Panic(err)
 	}
 
-	apiQuotaMetric := func(r *http.Response, headerName string, labels prometheus.Labels) {
-		rateLimit := r.Header.Get(headerName)
-		if v, err := strconv.ParseInt(rateLimit, 10, 64); err == nil {
-			prometheusMetricApiQuota.With(labels).Set(float64(v))
-		}
-	}
-
-	return func(p autorest.Responder) autorest.Responder {
-		return autorest.ResponderFunc(func(r *http.Response) error {
-			// subscription rate limits
-			apiQuotaMetric(r, "x-ms-ratelimit-remaining-subscription-reads", prometheus.Labels{"subscriptionID": subscriptionId, "scope": "subscription", "type": "read"})
-			apiQuotaMetric(r, "x-ms-ratelimit-remaining-subscription-resource-requests", prometheus.Labels{"subscriptionID": subscriptionId, "scope": "subscription", "type": "resource-requests"})
-			apiQuotaMetric(r, "x-ms-ratelimit-remaining-subscription-resource-entities-read", prometheus.Labels{"subscriptionID": subscriptionId, "scope": "subscription", "type": "resource-entities-read"})
-
-			// tenant rate limits
-			apiQuotaMetric(r, "x-ms-ratelimit-remaining-tenant-reads", prometheus.Labels{"subscriptionID": subscriptionId, "scope": "tenant", "type": "read"})
-			apiQuotaMetric(r, "x-ms-ratelimit-remaining-tenant-resource-requests", prometheus.Labels{"subscriptionID": subscriptionId, "scope": "tenant", "type": "resource-requests"})
-			apiQuotaMetric(r, "x-ms-ratelimit-remaining-tenant-resource-entities-read", prometheus.Labels{"subscriptionID": subscriptionId, "scope": "tenant", "type": "resource-entities-read"})
-			return nil
-		})
-	}
+	azuretracing.DecoreAzureAutoRest(client)
 }

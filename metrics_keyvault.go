@@ -208,8 +208,7 @@ func (m *MetricsCollectorKeyvault) Collect(ctx context.Context, logger *log.Entr
 	var wg sync.WaitGroup
 
 	keyvaultClient := keyvaultMgmt.NewVaultsClientWithBaseURI(azureEnvironment.ResourceManagerEndpoint, *subscription.SubscriptionID)
-	keyvaultClient.Authorizer = AzureAuthorizer
-	keyvaultClient.ResponseInspector = azureResponseInspector(&subscription)
+	decorateAzureClient(&keyvaultClient.BaseClient.Client, AzureAuthorizer)
 
 	if opts.Azure.ResourceGroup != "" {
 		keyvaultResult, err = keyvaultClient.ListByResourceGroupComplete(ctx, opts.Azure.ResourceGroup, nil)
@@ -232,7 +231,7 @@ func (m *MetricsCollectorKeyvault) Collect(ctx context.Context, logger *log.Entr
 		})
 
 		client := keyvault.New()
-		client.Authorizer = m.keyvaultAuth
+		decorateAzureClient(&client.Client, m.keyvaultAuth)
 
 		contextLogger.Info("collecting keyvault metrics")
 
