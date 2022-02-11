@@ -4,6 +4,7 @@ Azure Keyvault Exporter
 [![license](https://img.shields.io/github/license/webdevops/azure-keyvault-exporter.svg)](https://github.com/webdevops/azure-keyvault-exporter/blob/master/LICENSE)
 [![DockerHub](https://img.shields.io/badge/DockerHub-webdevops%2Fazure--keyvault--exporter-blue)](https://hub.docker.com/r/webdevops/azure-keyvault-exporter/)
 [![Quay.io](https://img.shields.io/badge/Quay.io-webdevops%2Fazure--keyvault--exporter-blue)](https://quay.io/repository/webdevops/azure-keyvault-exporter)
+[![Artifact Hub](https://img.shields.io/endpoint?url=https://artifacthub.io/badge/repository/azure-keyvault-exporter)](https://artifacthub.io/packages/search?repo=azure-keyvault-exporter)
 
 Prometheus exporter for Azure Keyvaults which exports general information and dates (created, updated, notBefore, expiry) for secrets, keys and certificates.
 
