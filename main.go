@@ -177,5 +177,5 @@ func decorateAzureClient(client *autorest.Client, authorizer autorest.Authorizer
 		log.Panic(err)
 	}
 
-	azuretracing.DecoreAzureAutoRest(client)
+	azuretracing.DecorateAzureAutoRestClient(client)
 }
