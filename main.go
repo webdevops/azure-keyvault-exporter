@@ -3,6 +3,12 @@ package main
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"os"
+	"path"
+	"runtime"
+	"strings"
+
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/resources/mgmt/subscriptions"
 	"github.com/Azure/go-autorest/autorest"
 	"github.com/Azure/go-autorest/autorest/azure"
@@ -10,13 +16,9 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
-	"github.com/webdevops/azure-keyvault-exporter/config"
 	"github.com/webdevops/go-prometheus-common/azuretracing"
-	"net/http"
-	"os"
-	"path"
-	"runtime"
-	"strings"
+
+	"github.com/webdevops/azure-keyvault-exporter/config"
 )
 
 const (

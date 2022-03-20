@@ -2,6 +2,10 @@ package main
 
 import (
 	"context"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/resources/mgmt/subscriptions"
 	"github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
 	keyvaultMgmt "github.com/Azure/azure-sdk-for-go/services/keyvault/mgmt/2016-10-01/keyvault"
@@ -11,9 +15,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	prometheusCommon "github.com/webdevops/go-prometheus-common"
-	"strings"
-	"sync"
-	"time"
 )
 
 type MetricsCollectorKeyvault struct {

@@ -2,8 +2,9 @@ package config
 
 import (
 	"encoding/json"
-	log "github.com/sirupsen/logrus"
 	"time"
+
+	log "github.com/sirupsen/logrus"
 )
 
 type (
@@ -17,10 +18,10 @@ type (
 
 		// azure
 		Azure struct {
-			Environment   *string  `long:"azure.environment"       env:"AZURE_ENVIRONMENT"                description:"Azure environment name" default:"AZUREPUBLICCLOUD"`
+			Environment   *string  `long:"azure.environment"       env:"AZURE_ENVIRONMENT"                        description:"Azure environment name" default:"AZUREPUBLICCLOUD"`
 			Subscription  []string `long:"azure.subscription"      env:"AZURE_SUBSCRIPTION_ID"     env-delim:" "  description:"Azure subscription ID"`
 			Location      []string `long:"azure.location"          env:"AZURE_LOCATION"            env-delim:" "  description:"Azure locations"                                  default:"westeurope" default:"northeurope"` //nolint:staticcheck
-			ResourceGroup string   `long:"azure.resourcegroup"     env:"AZURE_RESOURCEGROUP"                 description:"Azure ResourceGroup"`
+			ResourceGroup string   `long:"azure.resourcegroup"     env:"AZURE_RESOURCEGROUP"                      description:"Azure ResourceGroup"`
 			ResourceTags  []string `long:"azure.resource-tag"      env:"AZURE_RESOURCE_TAG"        env-delim:" "  description:"Azure Resource tags"                              default:"owner"`
 		}
 
