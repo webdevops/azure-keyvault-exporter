@@ -14,9 +14,6 @@ var (
 func stringPtrToStringLower(val *string) string {
 	return strings.ToLower(to.String(val))
 }
-func stringToStringLower(val string) string {
-	return strings.ToLower(val)
-}
 
 func boolToString(b bool) string {
 	if b {
