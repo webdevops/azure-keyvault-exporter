@@ -2,19 +2,20 @@ package main
 
 import (
 	"regexp"
+	"strings"
+
+	"github.com/Azure/go-autorest/autorest/to"
 )
 
 var (
-	resourceGroupFromResourceIdRegExp = regexp.MustCompile(`/subscriptions/[^/]+/resourceGroups/([^/]*)`)
-	keyvaultObjectNameRegExp          = regexp.MustCompile(`^https://[^/]+/[^/]+/([^/]+)(/?|/.*)`)
+	keyvaultObjectNameRegExp = regexp.MustCompile(`^https://[^/]+/[^/]+/([^/]+)(/?|/.*)`)
 )
 
-func extractResourceGroupFromAzureId(azureId string) (resourceGroup string) {
-	if subMatch := resourceGroupFromResourceIdRegExp.FindStringSubmatch(azureId); len(subMatch) >= 1 {
-		resourceGroup = subMatch[1]
-	}
-
-	return
+func stringPtrToStringLower(val *string) string {
+	return strings.ToLower(to.String(val))
+}
+func stringToStringLower(val string) string {
+	return strings.ToLower(val)
 }
 
 func boolToString(b bool) string {

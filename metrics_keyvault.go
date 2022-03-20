@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"strings"
 	"sync"
 	"time"
 
@@ -15,6 +14,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
 	prometheusCommon "github.com/webdevops/go-prometheus-common"
+	prometheusAzure "github.com/webdevops/go-prometheus-common/azure"
 )
 
 type MetricsCollectorKeyvault struct {
@@ -225,10 +225,12 @@ func (m *MetricsCollectorKeyvault) Collect(ctx context.Context, logger *log.Entr
 	for keyvaultResult.NotDone() {
 		keyvaultItem := keyvaultResult.Value()
 
+		azureResource, _ := prometheusAzure.ParseResourceId(*keyvaultItem.ID)
+
 		contextLogger := logger.WithFields(log.Fields{
-			"keyvault":      to.String(keyvaultItem.Name),
+			"keyvault":      azureResource.ResourceName,
 			"location":      to.String(keyvaultItem.Location),
-			"resourceGroup": extractResourceGroupFromAzureId(*keyvaultItem.ID),
+			"resourceGroup": azureResource.ResourceGroup,
 		})
 
 		client := keyvault.New()
@@ -266,11 +268,9 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 
 	vaultUrl := to.String(vault.Properties.VaultURI)
 
-	vaultResourceId := to.String(vault.ID)
-	if opts.Metrics.ResourceIdLowercase {
-		vaultResourceId = strings.ToLower(vaultResourceId)
-	}
-	vaultName := to.String(vault.Name)
+	vaultResourceId := stringPtrToStringLower(vault.ID)
+
+	azureResource, _ := prometheusAzure.ParseResourceId(*vault.ID)
 
 	entrySecretsCount := float64(0)
 	entryKeysCount := float64(0)
@@ -281,11 +281,11 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 	// ########################
 
 	vaultLabels := prometheus.Labels{
-		"subscriptionID": to.String(subscription.SubscriptionID),
+		"subscriptionID": azureResource.Subscription,
 		"resourceID":     vaultResourceId,
-		"vaultName":      vaultName,
+		"vaultName":      azureResource.ResourceName,
 		"location":       to.String(vault.Location),
-		"resourceGroup":  extractResourceGroupFromAzureId(*vault.ID),
+		"resourceGroup":  azureResource.ResourceGroup,
 	}
 	vaultLabels = azureKeyvaultTag.appendPrometheusLabel(vaultLabels, vault.Tags)
 	vaultMetrics.AddInfo(vaultLabels)
@@ -299,14 +299,14 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		logger.Warning(err)
 		vaultStatusMetrics.Add(prometheus.Labels{
 			"resourceID": vaultResourceId,
-			"vaultName":  vaultName,
+			"vaultName":  azureResource.ResourceName,
 			"type":       "access",
 			"scope":      "keys",
 		}, 0)
 	} else {
 		vaultStatusMetrics.Add(prometheus.Labels{
 			"resourceID": vaultResourceId,
-			"vaultName":  vaultName,
+			"vaultName":  azureResource.ResourceName,
 			"type":       "access",
 			"scope":      "keys",
 		}, 1)
@@ -318,7 +318,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 
 		vaultKeyMetrics.AddInfo(prometheus.Labels{
 			"resourceID": vaultResourceId,
-			"vaultName":  vaultName,
+			"vaultName":  azureResource.ResourceName,
 			"keyName":    parseKeyvaultObjectName(to.String(item.Kid)),
 			"keyID":      to.String(item.Kid),
 			"enabled":    boolToString(*item.Attributes.Enabled),
@@ -332,7 +332,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		}
 		vaultKeyStatusMetrics.Add(prometheus.Labels{
 			"resourceID": vaultResourceId,
-			"vaultName":  vaultName,
+			"vaultName":  azureResource.ResourceName,
 			"keyID":      to.String(item.Kid),
 			"type":       "expiry",
 		}, expiryDate)
@@ -345,7 +345,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		}
 		vaultKeyStatusMetrics.Add(prometheus.Labels{
 			"resourceID": vaultResourceId,
-			"vaultName":  vaultName,
+			"vaultName":  azureResource.ResourceName,
 			"keyID":      to.String(item.Kid),
 			"type":       "notBefore",
 		}, notBeforeDate)
@@ -358,7 +358,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		}
 		vaultKeyStatusMetrics.Add(prometheus.Labels{
 			"resourceID": vaultResourceId,
-			"vaultName":  vaultName,
+			"vaultName":  azureResource.ResourceName,
 			"keyID":      to.String(item.Kid),
 			"type":       "created",
 		}, createdDate)
@@ -371,7 +371,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		}
 		vaultKeyStatusMetrics.Add(prometheus.Labels{
 			"resourceID": vaultResourceId,
-			"vaultName":  vaultName,
+			"vaultName":  azureResource.ResourceName,
 			"keyID":      to.String(item.Kid),
 			"type":       "updated",
 		}, updatedDate)
@@ -390,14 +390,14 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		logger.Warning(err)
 		vaultStatusMetrics.Add(prometheus.Labels{
 			"resourceID": vaultResourceId,
-			"vaultName":  vaultName,
+			"vaultName":  azureResource.ResourceName,
 			"type":       "access",
 			"scope":      "secrets",
 		}, 0)
 	} else {
 		vaultStatusMetrics.Add(prometheus.Labels{
 			"resourceID": vaultResourceId,
-			"vaultName":  vaultName,
+			"vaultName":  azureResource.ResourceName,
 			"type":       "access",
 			"scope":      "secrets",
 		}, 1)
@@ -409,7 +409,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 
 		vaultSecretMetrics.AddInfo(prometheus.Labels{
 			"resourceID": vaultResourceId,
-			"vaultName":  vaultName,
+			"vaultName":  azureResource.ResourceName,
 			"secretName": parseKeyvaultObjectName(to.String(item.ID)),
 			"secretID":   to.String(item.ID),
 			"enabled":    boolToString(to.Bool(item.Attributes.Enabled)),
@@ -423,7 +423,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		}
 		vaultSecretStatusMetrics.Add(prometheus.Labels{
 			"resourceID": vaultResourceId,
-			"vaultName":  vaultName,
+			"vaultName":  azureResource.ResourceName,
 			"secretID":   to.String(item.ID),
 			"type":       "expiry",
 		}, expiryDate)
@@ -436,7 +436,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		}
 		vaultSecretStatusMetrics.Add(prometheus.Labels{
 			"resourceID": vaultResourceId,
-			"vaultName":  vaultName,
+			"vaultName":  azureResource.ResourceName,
 			"secretID":   to.String(item.ID),
 			"type":       "notBefore",
 		}, notBeforeDate)
@@ -449,7 +449,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		}
 		vaultSecretStatusMetrics.Add(prometheus.Labels{
 			"resourceID": vaultResourceId,
-			"vaultName":  vaultName,
+			"vaultName":  azureResource.ResourceName,
 			"secretID":   to.String(item.ID),
 			"type":       "created",
 		}, createdDate)
@@ -462,7 +462,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		}
 		vaultSecretStatusMetrics.Add(prometheus.Labels{
 			"resourceID": vaultResourceId,
-			"vaultName":  vaultName,
+			"vaultName":  azureResource.ResourceName,
 			"secretID":   to.String(item.ID),
 			"type":       "updated",
 		}, updatedDate)
@@ -481,14 +481,14 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		logger.Warning(err)
 		vaultStatusMetrics.Add(prometheus.Labels{
 			"resourceID": vaultResourceId,
-			"vaultName":  vaultName,
+			"vaultName":  azureResource.ResourceName,
 			"type":       "access",
 			"scope":      "certificates",
 		}, 0)
 	} else {
 		vaultStatusMetrics.Add(prometheus.Labels{
 			"resourceID": vaultResourceId,
-			"vaultName":  vaultName,
+			"vaultName":  azureResource.ResourceName,
 			"type":       "access",
 			"scope":      "certificates",
 		}, 1)
@@ -500,7 +500,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 
 		vaultCertificateMetrics.AddInfo(prometheus.Labels{
 			"resourceID":      vaultResourceId,
-			"vaultName":       vaultName,
+			"vaultName":       azureResource.ResourceName,
 			"certificateName": parseKeyvaultObjectName(to.String(item.ID)),
 			"certificateID":   to.String(item.ID),
 			"enabled":         boolToString(to.Bool(item.Attributes.Enabled)),
@@ -514,7 +514,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		}
 		vaultCertificateStatusMetrics.Add(prometheus.Labels{
 			"resourceID":    vaultResourceId,
-			"vaultName":     vaultName,
+			"vaultName":     azureResource.ResourceName,
 			"certificateID": to.String(item.ID),
 			"type":          "expiry",
 		}, expiryDate)
@@ -527,7 +527,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		}
 		vaultCertificateStatusMetrics.Add(prometheus.Labels{
 			"resourceID":    vaultResourceId,
-			"vaultName":     vaultName,
+			"vaultName":     azureResource.ResourceName,
 			"certificateID": to.String(item.ID),
 			"type":          "notBefore",
 		}, notBeforeDate)
@@ -540,7 +540,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		}
 		vaultCertificateStatusMetrics.Add(prometheus.Labels{
 			"resourceID":    vaultResourceId,
-			"vaultName":     vaultName,
+			"vaultName":     azureResource.ResourceName,
 			"certificateID": to.String(item.ID),
 			"type":          "created",
 		}, createdDate)
@@ -553,7 +553,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		}
 		vaultCertificateStatusMetrics.Add(prometheus.Labels{
 			"resourceID":    vaultResourceId,
-			"vaultName":     vaultName,
+			"vaultName":     azureResource.ResourceName,
 			"certificateID": to.String(item.ID),
 			"type":          "updated",
 		}, updatedDate)
@@ -579,19 +579,19 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 
 		m.prometheus.keyvaultEntryCount.With(prometheus.Labels{
 			"resourceID": vaultResourceId,
-			"vaultName":  vaultName,
+			"vaultName":  azureResource.ResourceName,
 			"type":       "secrets",
 		}).Set(entrySecretsCount)
 
 		m.prometheus.keyvaultEntryCount.With(prometheus.Labels{
 			"resourceID": vaultResourceId,
-			"vaultName":  vaultName,
+			"vaultName":  azureResource.ResourceName,
 			"type":       "keys",
 		}).Set(entryKeysCount)
 
 		m.prometheus.keyvaultEntryCount.With(prometheus.Labels{
 			"resourceID": vaultResourceId,
-			"vaultName":  vaultName,
+			"vaultName":  azureResource.ResourceName,
 			"type":       "certificates",
 		}).Set(entryCertsCount)
 	}
