@@ -22,9 +22,7 @@ import (
 )
 
 const (
-	Author                    = "webdevops.io"
-	AZURE_KEYVAULT_TAG_PREFIX = "tag_"
-
+	Author    = "webdevops.io"
 	UserAgent = "azure-keyvault-exporter/"
 )
 
@@ -35,7 +33,6 @@ var (
 	AzureAuthorizer    autorest.Authorizer
 	AzureSubscriptions []subscriptions.Subscription
 
-	azureKeyvaultTag AzureTagFilter
 	azureEnvironment azure.Environment
 
 	collectorGeneralList map[string]*CollectorGeneral
@@ -107,8 +104,6 @@ func initArgparser() {
 			},
 		})
 	}
-
-	azureKeyvaultTag = NewAzureTagFilter(AZURE_KEYVAULT_TAG_PREFIX, opts.Azure.ResourceTags)
 }
 
 func initAzureConnection() {

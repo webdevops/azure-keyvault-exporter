@@ -57,7 +57,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *CollectorGeneral) {
 			Name: "azurerm_keyvault_info",
 			Help: "Azure KeyVault information",
 		},
-		append(
+		prometheusAzure.AddResourceTagsToPrometheusLabelsDefinition(
 			[]string{
 				"subscriptionID",
 				"resourceID",
@@ -65,7 +65,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *CollectorGeneral) {
 				"location",
 				"resourceGroup",
 			},
-			azureKeyvaultTag.prometheusLabels...,
+			opts.Azure.ResourceTags,
 		),
 	)
 	prometheus.MustRegister(m.prometheus.keyvault)
@@ -287,7 +287,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		"location":       to.String(vault.Location),
 		"resourceGroup":  azureResource.ResourceGroup,
 	}
-	vaultLabels = azureKeyvaultTag.appendPrometheusLabel(vaultLabels, vault.Tags)
+	vaultLabels = prometheusAzure.AddResourceTagsToPrometheusLabels(vaultLabels, vault.Tags, opts.Azure.ResourceTags)
 	vaultMetrics.AddInfo(vaultLabels)
 
 	// ########################
