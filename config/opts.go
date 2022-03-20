@@ -20,7 +20,6 @@ type (
 		Azure struct {
 			Environment   *string  `long:"azure.environment"       env:"AZURE_ENVIRONMENT"                        description:"Azure environment name" default:"AZUREPUBLICCLOUD"`
 			Subscription  []string `long:"azure.subscription"      env:"AZURE_SUBSCRIPTION_ID"     env-delim:" "  description:"Azure subscription ID (space delimiter)"`
-			Location      []string `long:"azure.location"          env:"AZURE_LOCATION"            env-delim:" "  description:"Azure locations (space delimiter)"                                  default:"westeurope" default:"northeurope"` //nolint:staticcheck
 			ResourceGroup string   `long:"azure.resourcegroup"     env:"AZURE_RESOURCEGROUP"                      description:"Azure ResourceGroup"`
 			ResourceTags  []string `long:"azure.resource-tag"      env:"AZURE_RESOURCE_TAG"        env-delim:" "  description:"Azure Resource tags (space delimiter)"                              default:"owner"`
 		}

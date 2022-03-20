@@ -21,7 +21,6 @@ Application Options:
       --log.json             Switch log output to json format [$LOG_JSON]
       --azure.environment=   Azure environment name (default: AZUREPUBLICCLOUD) [$AZURE_ENVIRONMENT]
       --azure.subscription=  Azure subscription ID (space delimiter) [$AZURE_SUBSCRIPTION_ID]
-      --azure.location=      Azure locations (space delimiter) (default: westeurope, northeurope) [$AZURE_LOCATION]
       --azure.resourcegroup= Azure ResourceGroup [$AZURE_RESOURCEGROUP]
       --azure.resource-tag=  Azure Resource tags (space delimiter) (default: owner) [$AZURE_RESOURCE_TAG]
       --scrape.time=         Default scrape time (time.duration) (default: 5m) [$SCRAPE_TIME]
