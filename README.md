@@ -1,5 +1,4 @@
-Azure Keyvault Exporter
-=======================
+# Azure Keyvault Exporter
 
 [![license](https://img.shields.io/github/license/webdevops/azure-keyvault-exporter.svg)](https://github.com/webdevops/azure-keyvault-exporter/blob/master/LICENSE)
 [![DockerHub](https://img.shields.io/badge/DockerHub-webdevops%2Fazure--keyvault--exporter-blue)](https://hub.docker.com/r/webdevops/azure-keyvault-exporter/)
@@ -8,8 +7,7 @@ Azure Keyvault Exporter
 
 Prometheus exporter for Azure Keyvaults which exports general information and dates (created, updated, notBefore, expiry) for secrets, keys and certificates.
 
-Configuration
--------------
+## Configuration
 
 Normally no configuration is needed but can be customized using environment variables.
 
@@ -22,21 +20,21 @@ Application Options:
   -v, --verbose              verbose mode [$VERBOSE]
       --log.json             Switch log output to json format [$LOG_JSON]
       --azure.environment=   Azure environment name (default: AZUREPUBLICCLOUD) [$AZURE_ENVIRONMENT]
-      --azure.subscription=  Azure subscription ID [$AZURE_SUBSCRIPTION_ID]
-      --azure.location=      Azure locations (default: westeurope, northeurope) [$AZURE_LOCATION]
+      --azure.subscription=  Azure subscription ID (space delimiter) [$AZURE_SUBSCRIPTION_ID]
+      --azure.location=      Azure locations (space delimiter) (default: westeurope, northeurope) [$AZURE_LOCATION]
       --azure.resourcegroup= Azure ResourceGroup [$AZURE_RESOURCEGROUP]
-      --azure.resource-tag=  Azure Resource tags (default: owner) [$AZURE_RESOURCE_TAG]
+      --azure.resource-tag=  Azure Resource tags (space delimiter) (default: owner) [$AZURE_RESOURCE_TAG]
       --scrape.time=         Default scrape time (time.duration) (default: 5m) [$SCRAPE_TIME]
       --bind=                Server address (default: :8080) [$SERVER_BIND]
 
 Help Options:
   -h, --help                 Show this help message
+
 ```
 
 for Azure API authentication (using ENV vars) see https://docs.microsoft.com/en-us/azure/developer/go/azure-sdk-authentication
 
-Metrics
--------
+## Metrics
 
 | Metric                                 | Description                                                         |
 |----------------------------------------|---------------------------------------------------------------------|
@@ -50,7 +48,18 @@ Metrics
 | `azurerm_keyvault_certificate_info`    | General inforamtions about certificate                              |
 | `azurerm_keyvault_certificate_status`  | Status information (notBefore & expiry date)                        |
 
-## AzureTracing metrics
+### ResourceTags handling
+
+Tag can be dynamically added to metrics and processed though filters
+
+format is: `tagname?filter1` or `tagname?filter1&filter2`
+
+| Tag filter | Description                 |
+|------------|-----------------------------|
+| `toLower`  | Lowercasing Azure tag value |
+| `toUpper`  | Uppercasing Azure tag value |
+
+### AzureTracing metrics
 
 (with 22.2.0 and later)
 
@@ -62,7 +71,7 @@ environment variables (eg. setting buckets, disabling metrics or disable autores
 | `azurerm_api_ratelimit`                  | Azure ratelimit metrics (only on /metrics, resets after query due to limited validity) |
 | `azurerm_api_request_*`                  | Azure request count and latency as histogram                                           |
 
-### Settings
+#### Settings
 
 | Environment variable                     | Example                            | Description                                                    |
 |------------------------------------------|------------------------------------|----------------------------------------------------------------|
