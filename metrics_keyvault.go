@@ -13,8 +13,8 @@ import (
 	"github.com/Azure/go-autorest/autorest/to"
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
-	prometheusCommon "github.com/webdevops/go-prometheus-common"
-	prometheusAzure "github.com/webdevops/go-prometheus-common/azure"
+	azureCommon "github.com/webdevops/go-common/azure"
+	prometheusCommon "github.com/webdevops/go-common/prometheus"
 )
 
 type MetricsCollectorKeyvault struct {
@@ -57,7 +57,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *CollectorGeneral) {
 			Name: "azurerm_keyvault_info",
 			Help: "Azure KeyVault information",
 		},
-		prometheusAzure.AddResourceTagsToPrometheusLabelsDefinition(
+		azureCommon.AddResourceTagsToPrometheusLabelsDefinition(
 			[]string{
 				"subscriptionID",
 				"resourceID",
@@ -225,7 +225,7 @@ func (m *MetricsCollectorKeyvault) Collect(ctx context.Context, logger *log.Entr
 	for keyvaultResult.NotDone() {
 		keyvaultItem := keyvaultResult.Value()
 
-		azureResource, _ := prometheusAzure.ParseResourceId(*keyvaultItem.ID)
+		azureResource, _ := azureCommon.ParseResourceId(*keyvaultItem.ID)
 
 		contextLogger := logger.WithFields(log.Fields{
 			"keyvault":      azureResource.ResourceName,
@@ -270,7 +270,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 
 	vaultResourceId := stringPtrToStringLower(vault.ID)
 
-	azureResource, _ := prometheusAzure.ParseResourceId(*vault.ID)
+	azureResource, _ := azureCommon.ParseResourceId(*vault.ID)
 
 	entrySecretsCount := float64(0)
 	entryKeysCount := float64(0)
@@ -287,7 +287,7 @@ func (m *MetricsCollectorKeyvault) collectKeyvault(ctx context.Context, logger *
 		"location":       to.String(vault.Location),
 		"resourceGroup":  azureResource.ResourceGroup,
 	}
-	vaultLabels = prometheusAzure.AddResourceTagsToPrometheusLabels(vaultLabels, vault.Tags, opts.Azure.ResourceTags)
+	vaultLabels = azureCommon.AddResourceTagsToPrometheusLabels(vaultLabels, vault.Tags, opts.Azure.ResourceTags)
 	vaultMetrics.AddInfo(vaultLabels)
 
 	// ########################

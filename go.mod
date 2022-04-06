@@ -3,7 +3,7 @@ module github.com/webdevops/azure-keyvault-exporter
 go 1.17
 
 require (
-	github.com/Azure/azure-sdk-for-go v62.2.0+incompatible
+	github.com/Azure/azure-sdk-for-go v63.1.0+incompatible
 	github.com/Azure/go-autorest/autorest v0.11.24
 	github.com/Azure/go-autorest/autorest/azure/auth v0.5.11
 	github.com/Azure/go-autorest/autorest/to v0.4.0
@@ -15,10 +15,11 @@ require (
 	github.com/prometheus/client_golang v1.12.1
 	github.com/prometheus/common v0.32.1 // indirect
 	github.com/sirupsen/logrus v1.8.1
-	github.com/webdevops/go-prometheus-common v0.0.0-20220320144948-9495f8606eff
 	golang.org/x/crypto v0.0.0-20220315160706-3147a52a75dd // indirect
 	golang.org/x/sys v0.0.0-20220319134239-a9b59b0215f8 // indirect
 )
+
+require github.com/webdevops/go-common v0.0.0-20220406110653-237539a358b2
 
 require (
 	github.com/Azure/go-autorest v14.2.0+incompatible // indirect
