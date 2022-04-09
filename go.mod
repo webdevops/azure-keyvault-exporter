@@ -1,6 +1,6 @@
 module github.com/webdevops/azure-keyvault-exporter
 
-go 1.17
+go 1.18
 
 require (
 	github.com/Azure/azure-sdk-for-go v63.1.0+incompatible
