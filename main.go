@@ -5,18 +5,16 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"path"
 	"runtime"
-	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/resources/mgmt/subscriptions"
-	"github.com/Azure/go-autorest/autorest"
-	"github.com/Azure/go-autorest/autorest/azure"
-	"github.com/Azure/go-autorest/autorest/azure/auth"
 	"github.com/jessevdk/go-flags"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	log "github.com/sirupsen/logrus"
+	azureCommon "github.com/webdevops/go-common/azure"
 	"github.com/webdevops/go-common/prometheus/azuretracing"
+	"github.com/webdevops/go-common/prometheus/collector"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 
 	"github.com/webdevops/azure-keyvault-exporter/config"
 )
@@ -30,12 +28,10 @@ var (
 	argparser *flags.Parser
 	opts      config.Opts
 
-	AzureAuthorizer    autorest.Authorizer
-	AzureSubscriptions []subscriptions.Subscription
+	logger *zap.SugaredLogger
 
-	azureEnvironment azure.Environment
-
-	collectorGeneralList map[string]*CollectorGeneral
+	AzureClient                *azureCommon.Client
+	AzureSubscriptionsIterator *azureCommon.IteratorSubscriptions
 
 	// Git version information
 	gitCommit = "<unknown>"
@@ -44,17 +40,18 @@ var (
 
 func main() {
 	initArgparser()
+	defer initLogger()()
 
-	log.Infof("starting azure-keyvault-exporter v%s (%s; %s; by %v)", gitTag, gitCommit, runtime.Version(), Author)
-	log.Info(string(opts.GetJson()))
+	logger.Infof("starting azure-keyvault-exporter v%s (%s; %s; by %v)", gitTag, gitCommit, runtime.Version(), Author)
+	logger.Info(string(opts.GetJson()))
 
-	log.Infof("init Azure connection")
+	logger.Infof("init Azure connection")
 	initAzureConnection()
 
-	log.Infof("starting metrics collection")
+	logger.Infof("starting metrics collection")
 	initMetricCollector()
 
-	log.Infof("Starting http server on %s", opts.ServerBind)
+	logger.Infof("Starting http server on %s", opts.ServerBind)
 	startHttpServer()
 }
 
@@ -73,85 +70,89 @@ func initArgparser() {
 			os.Exit(1)
 		}
 	}
+}
 
-	// verbose level
-	if opts.Logger.Verbose {
-		log.SetLevel(log.DebugLevel)
+func initLogger() func() {
+	loggerConfig := zap.NewProductionConfig()
+	loggerConfig.Encoding = "console"
+	loggerConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
+
+	// dev mode
+	if opts.Logger.DevelopmentMode {
+		loggerConfig.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
+		loggerConfig.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
+	} else {
+		// debug level
+		if opts.Logger.Debug {
+			loggerConfig = zap.NewDevelopmentConfig()
+			loggerConfig.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
+			loggerConfig.DisableStacktrace = false
+		}
+
+		// json log format
+		if opts.Logger.Json {
+			loggerConfig.Encoding = "json"
+			loggerConfig.EncoderConfig.TimeKey = ""
+		}
 	}
 
-	// debug level
-	if opts.Logger.Debug {
-		log.SetReportCaller(true)
-		log.SetLevel(log.TraceLevel)
-		log.SetFormatter(&log.TextFormatter{
-			CallerPrettyfier: func(f *runtime.Frame) (string, string) {
-				s := strings.Split(f.Function, ".")
-				funcName := s[len(s)-1]
-				return funcName, fmt.Sprintf("%s:%d", path.Base(f.File), f.Line)
-			},
-		})
+	zapLogger, err := loggerConfig.Build()
+	if err != nil {
+		panic(err)
 	}
 
-	// json log format
-	if opts.Logger.LogJson {
-		log.SetReportCaller(true)
-		log.SetFormatter(&log.JSONFormatter{
-			DisableTimestamp: true,
-			CallerPrettyfier: func(f *runtime.Frame) (string, string) {
-				s := strings.Split(f.Function, ".")
-				funcName := s[len(s)-1]
-				return funcName, fmt.Sprintf("%s:%d", path.Base(f.File), f.Line)
-			},
-		})
+	logger = zapLogger.Sugar()
+	return func() {
+		if err := logger.Sync(); err != nil {
+			panic(err)
+		}
 	}
 }
 
 func initAzureConnection() {
 	var err error
-	ctx := context.Background()
-
-	// azure authorizer
-	AzureAuthorizer, err = auth.NewAuthorizerFromEnvironment()
+	AzureClient, err = azureCommon.NewClientFromEnvironment(*opts.Azure.Environment)
 	if err != nil {
-		panic(err)
+		logger.Panic(err.Error())
 	}
 
-	azureEnvironment, err = azure.EnvironmentFromName(*opts.Azure.Environment)
-	if err != nil {
-		log.Panic(err)
-	}
+	AzureClient.SetUserAgent(UserAgent + gitTag)
 
-	subscriptionsClient := subscriptions.NewClientWithBaseURI(azureEnvironment.ResourceManagerEndpoint)
-	decorateAzureClient(&subscriptionsClient.Client, AzureAuthorizer)
+	AzureSubscriptionsIterator = azureCommon.NewIteratorSubscriptions(AzureClient)
 
-	if len(opts.Azure.Subscription) == 0 {
-		listResult, err := subscriptionsClient.List(ctx)
-		if err != nil {
-			panic(err)
-		}
-		AzureSubscriptions = listResult.Values()
-	} else {
-		AzureSubscriptions = []subscriptions.Subscription{}
-		for _, subId := range opts.Azure.Subscription {
-			result, err := subscriptionsClient.Get(ctx, subId)
+	if len(opts.Azure.Subscription) >= 0 {
+		subscriptionsClient := subscriptions.NewClientWithBaseURI(AzureClient.Environment.ResourceManagerEndpoint)
+		AzureClient.DecorateAzureAutorest(&subscriptionsClient.Client)
+
+		subscriptionList := []subscriptions.Subscription{}
+		for _, subscriptionID := range opts.Azure.Subscription {
+			subscription, err := subscriptionsClient.Get(context.Background(), subscriptionID)
 			if err != nil {
 				panic(err)
 			}
-			AzureSubscriptions = append(AzureSubscriptions, result)
+			subscriptionList = append(subscriptionList, subscription)
 		}
+
+		AzureSubscriptionsIterator.SetFixedSubscriptions(subscriptionList)
 	}
 }
 
 func initMetricCollector() {
 	var collectorName string
-	collectorGeneralList = map[string]*CollectorGeneral{}
 
 	collectorName = "Keyvault"
 	if opts.Scrape.Time.Seconds() > 0 {
-		collectorGeneralList[collectorName] = NewCollectorGeneral(collectorName, &MetricsCollectorKeyvault{})
-		collectorGeneralList[collectorName].Run(opts.Scrape.Time)
+		c := collector.New(collectorName, &MetricsCollectorKeyvault{}, logger.Desugar())
+		c.SetScapeTime(opts.Scrape.Time)
+		c.SetConcurrency(opts.Scrape.Concurrency)
+		if err := c.Start(); err != nil {
+			logger.Panic(err.Error())
+		}
 	} else {
-		log.WithField("collector", collectorName).Infof("collector disabled")
+		logger.Infow(
+			"collector disabled",
+			zap.String("collector", collectorName),
+		)
 	}
 }
 
@@ -160,19 +161,10 @@ func startHttpServer() {
 	// healthz
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if _, err := fmt.Fprint(w, "Ok"); err != nil {
-			log.Error(err)
+			logger.Error(err)
 		}
 	})
 
 	http.Handle("/metrics", azuretracing.RegisterAzureMetricAutoClean(promhttp.Handler()))
-	log.Error(http.ListenAndServe(opts.ServerBind, nil))
-}
-
-func decorateAzureClient(client *autorest.Client, authorizer autorest.Authorizer) {
-	client.Authorizer = authorizer
-	if err := client.AddToUserAgent(UserAgent + gitTag); err != nil {
-		log.Panic(err)
-	}
-
-	azuretracing.DecorateAzureAutoRestClient(client)
+	logger.Panic(http.ListenAndServe(opts.ServerBind, nil))
 }

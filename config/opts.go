@@ -11,9 +11,9 @@ type (
 	Opts struct {
 		// logger
 		Logger struct {
-			Debug   bool `           long:"debug"        env:"DEBUG"    description:"debug mode"`
-			Verbose bool `short:"v"  long:"verbose"      env:"VERBOSE"  description:"verbose mode"`
-			LogJson bool `           long:"log.json"     env:"LOG_JSON" description:"Switch log output to json format"`
+			Debug           bool `           long:"debug"           env:"DEBUG"           description:"debug mode"`
+			Json            bool `           long:"log.json"        env:"LOG_JSON"        description:"Switch log output to json format"`
+			DevelopmentMode bool `           long:"log.development" env:"LOG_DEVELOPMENT" description:"Enables colored logs"`
 		}
 
 		// azure
@@ -26,7 +26,8 @@ type (
 
 		// scrape times
 		Scrape struct {
-			Time time.Duration `long:"scrape.time"                    env:"SCRAPE_TIME"                    description:"Default scrape time (time.duration)"                      default:"5m"`
+			Time        time.Duration `long:"scrape.time"         env:"SCRAPE_TIME"         description:"Default scrape time (time.duration)"                         default:"5m"`
+			Concurrency int           `long:"scrape.concurrency"  env:"SCRAPE_CONCURRENCY"  description:"Defines who many Keyvaults can be scraped at the same time"  default:"10"`
 		}
 
 		// general options
