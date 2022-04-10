@@ -242,6 +242,16 @@ github.com/webdevops/go-common v0.0.0-20220410105213-bb21694e541d h1:sRNKrXc+aGx
 github.com/webdevops/go-common v0.0.0-20220410105213-bb21694e541d/go.mod h1:EGb6BMDxY+CD/bphCq6xcQKCFLI1e/8U770aqYr4kJM=
 github.com/webdevops/go-common v0.0.0-20220410112608-3f36863d9e42 h1:KVYarAvh28MPR5yRu4iZDRKDl+RPqr9FiW36HPMmU7g=
 github.com/webdevops/go-common v0.0.0-20220410112608-3f36863d9e42/go.mod h1:EGb6BMDxY+CD/bphCq6xcQKCFLI1e/8U770aqYr4kJM=
+github.com/webdevops/go-common v0.0.0-20220410133819-139e4cf7e934 h1:6ox3K6EUKOaL6ECBwlomxTfxT3EAeBkETlwsNXwXtBU=
+github.com/webdevops/go-common v0.0.0-20220410133819-139e4cf7e934/go.mod h1:StsDbNavo/7SyvTBMzsqaiTy0rK3wIF1dSJk5vqOaws=
+github.com/webdevops/go-common v0.0.0-20220410140446-40fbc161aad0 h1:oG/8yVL6g8yHp58zgzwDB1BKmx7rJSMgFeYPvyihapQ=
+github.com/webdevops/go-common v0.0.0-20220410140446-40fbc161aad0/go.mod h1:StsDbNavo/7SyvTBMzsqaiTy0rK3wIF1dSJk5vqOaws=
+github.com/webdevops/go-common v0.0.0-20220410140747-5b233cbd2914 h1:bjVjVcwSGcSIOCgJNW8KEJjf0LpYaVwB2D7w9pWGlSA=
+github.com/webdevops/go-common v0.0.0-20220410140747-5b233cbd2914/go.mod h1:StsDbNavo/7SyvTBMzsqaiTy0rK3wIF1dSJk5vqOaws=
+github.com/webdevops/go-common v0.0.0-20220410140924-09cc63446c93 h1:ijGhuoHrMJOlO2aR55KXwKyWUBCZHp7JAD3+S/qd+oc=
+github.com/webdevops/go-common v0.0.0-20220410140924-09cc63446c93/go.mod h1:StsDbNavo/7SyvTBMzsqaiTy0rK3wIF1dSJk5vqOaws=
+github.com/webdevops/go-common v0.0.0-20220410141014-2aa907a3806f h1:l1c/2DD6QZbJnCsaPYoMs5scnqHQOAxPWTvjKZSmVp0=
+github.com/webdevops/go-common v0.0.0-20220410141014-2aa907a3806f/go.mod h1:StsDbNavo/7SyvTBMzsqaiTy0rK3wIF1dSJk5vqOaws=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=

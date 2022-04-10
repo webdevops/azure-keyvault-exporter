@@ -11,9 +11,9 @@ type (
 	Opts struct {
 		// logger
 		Logger struct {
-			Debug           bool `           long:"debug"           env:"DEBUG"           description:"debug mode"`
-			Json            bool `           long:"log.json"        env:"LOG_JSON"        description:"Switch log output to json format"`
-			DevelopmentMode bool `           long:"log.development" env:"LOG_DEVELOPMENT" description:"Enables colored logs"`
+			Debug bool `long:"log.debug"    env:"LOG_DEBUG"  description:"debug mode"`
+			Trace bool `long:"log.trace"    env:"LOG_TRACE"  description:"trace mode"`
+			Json  bool `long:"log.json"     env:"LOG_JSON"   description:"Switch log output to json format"`
 		}
 
 		// azure

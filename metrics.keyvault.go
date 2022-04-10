@@ -14,7 +14,6 @@ import (
 	azureCommon "github.com/webdevops/go-common/azure"
 	prometheusCommon "github.com/webdevops/go-common/prometheus"
 	"github.com/webdevops/go-common/prometheus/collector"
-	"go.uber.org/zap"
 )
 
 type MetricsCollectorKeyvault struct {
@@ -207,7 +206,8 @@ func (m *MetricsCollectorKeyvault) Reset() {
 
 func (m *MetricsCollectorKeyvault) Collect(callback chan<- func()) {
 	err := AzureSubscriptionsIterator.ForEachAsync(func(subscription subscriptions.Subscription) {
-		contextLogger := m.collector.Logger.With(zap.String("subscription", *subscription.SubscriptionID))
+		contextLogger := m.collector.Logger.WithField("subscription", *subscription.SubscriptionID)
+		contextLogger.Debug("collecting for subscription")
 		m.collectSubscription(callback, subscription, contextLogger)
 	})
 	if err != nil {
@@ -215,7 +215,7 @@ func (m *MetricsCollectorKeyvault) Collect(callback chan<- func()) {
 	}
 }
 
-func (m *MetricsCollectorKeyvault) collectSubscription(callback chan<- func(), subscription subscriptions.Subscription, logger *zap.SugaredLogger) {
+func (m *MetricsCollectorKeyvault) collectSubscription(callback chan<- func(), subscription subscriptions.Subscription, logger *log.Entry) {
 	var keyvaultResult keyvaultMgmt.VaultListResultIterator
 	var err error
 
@@ -240,20 +240,20 @@ func (m *MetricsCollectorKeyvault) collectSubscription(callback chan<- func(), s
 
 		azureResource, _ := azureCommon.ParseResourceId(*vault.ID)
 
-		contextLogger := logger.With(
-			zap.String("keyvault", azureResource.ResourceName),
-			zap.String("location", to.String(vault.Location)),
-			zap.String("resourceGroup", azureResource.ResourceGroup),
-		)
+		contextLogger := logger.WithFields(log.Fields{
+			"keyvault":      azureResource.ResourceName,
+			"location":      to.String(vault.Location),
+			"resourceGroup": azureResource.ResourceGroup,
+		})
 
 		client := keyvault.New()
 		AzureClient.DecorateAzureAutorestWithAuthorizer(&client.Client, m.keyvaultAuth)
 
 		m.collector.WaitGroup.Add()
-		go func(client keyvault.BaseClient, vault keyvaultMgmt.Vault, contextLogger *zap.SugaredLogger) {
+		go func(client keyvault.BaseClient, vault keyvaultMgmt.Vault, contextLogger *log.Entry) {
 			defer m.collector.WaitGroup.Done()
 			contextLogger.Info("collecting keyvault metrics")
-			m.collectKeyvault(callback, client, vault, contextLogger)
+			m.collectKeyVault(callback, client, vault, contextLogger)
 		}(client, vault, contextLogger)
 
 		if keyvaultResult.NextWithContext(ctx) != nil {
@@ -264,7 +264,7 @@ func (m *MetricsCollectorKeyvault) collectSubscription(callback chan<- func(), s
 	}
 }
 
-func (m *MetricsCollectorKeyvault) collectKeyvault(callback chan<- func(), client keyvault.BaseClient, vault keyvaultMgmt.Vault, logger *zap.SugaredLogger) (status bool) {
+func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), client keyvault.BaseClient, vault keyvaultMgmt.Vault, logger *log.Entry) (status bool) {
 	ctx := m.collector.Context
 	status = true
 

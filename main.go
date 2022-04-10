@@ -5,14 +5,14 @@ import (
 	"net/http"
 	"os"
 	"runtime"
+	"strings"
 
 	"github.com/jessevdk/go-flags"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	log "github.com/sirupsen/logrus"
 	azureCommon "github.com/webdevops/go-common/azure"
 	"github.com/webdevops/go-common/prometheus/azuretracing"
 	"github.com/webdevops/go-common/prometheus/collector"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
 	"github.com/webdevops/azure-keyvault-exporter/config"
 )
@@ -26,8 +26,6 @@ var (
 	argparser *flags.Parser
 	opts      config.Opts
 
-	logger *zap.SugaredLogger
-
 	AzureClient                *azureCommon.Client
 	AzureSubscriptionsIterator *azureCommon.SubscriptionsIterator
 
@@ -40,16 +38,16 @@ func main() {
 	initArgparser()
 	initLogger()
 
-	logger.Infof("starting azure-keyvault-exporter v%s (%s; %s; by %v)", gitTag, gitCommit, runtime.Version(), Author)
-	logger.Info(string(opts.GetJson()))
+	log.Infof("starting azure-keyvault-exporter v%s (%s; %s; by %v)", gitTag, gitCommit, runtime.Version(), Author)
+	log.Info(string(opts.GetJson()))
 
-	logger.Infof("init Azure connection")
+	log.Infof("init Azure connection")
 	initAzureConnection()
 
-	logger.Infof("starting metrics collection")
+	log.Infof("starting metrics collection")
 	initMetricCollector()
 
-	logger.Infof("Starting http server on %s", opts.ServerBind)
+	log.Infof("Starting http server on %s", opts.ServerBind)
 	startHttpServer()
 }
 
@@ -71,42 +69,43 @@ func initArgparser() {
 }
 
 func initLogger() {
-	loggerConfig := zap.NewProductionConfig()
-	loggerConfig.Encoding = "console"
-	loggerConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
-
-	// dev mode
-	if opts.Logger.DevelopmentMode {
-		loggerConfig.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
-		loggerConfig.EncoderConfig.EncodeLevel = zapcore.CapitalColorLevelEncoder
-	} else {
-		// debug level
-		if opts.Logger.Debug {
-			loggerConfig = zap.NewDevelopmentConfig()
-			loggerConfig.Level = zap.NewAtomicLevelAt(zapcore.DebugLevel)
-			loggerConfig.DisableStacktrace = false
-		}
-
-		// json log format
-		if opts.Logger.Json {
-			loggerConfig.Encoding = "json"
-			loggerConfig.EncoderConfig.TimeKey = ""
-		}
+	// verbose level
+	if opts.Logger.Debug {
+		log.SetLevel(log.DebugLevel)
 	}
 
-	zapLogger, err := loggerConfig.Build()
-	if err != nil {
-		panic(err)
+	// trace level
+	if opts.Logger.Trace {
+		log.SetReportCaller(true)
+		log.SetLevel(log.TraceLevel)
+		log.SetFormatter(&log.TextFormatter{
+			CallerPrettyfier: func(f *runtime.Frame) (string, string) {
+				s := strings.Split(f.Function, "/")
+				funcName := s[len(s)-1]
+				return funcName, fmt.Sprintf("%s:%d", f.File, f.Line)
+			},
+		})
 	}
 
-	logger = zapLogger.Sugar()
+	// json log format
+	if opts.Logger.Json {
+		log.SetReportCaller(true)
+		log.SetFormatter(&log.JSONFormatter{
+			DisableTimestamp: true,
+			CallerPrettyfier: func(f *runtime.Frame) (string, string) {
+				s := strings.Split(f.Function, "/")
+				funcName := s[len(s)-1]
+				return funcName, fmt.Sprintf("%s:%d", f.File, f.Line)
+			},
+		})
+	}
 }
 
 func initAzureConnection() {
 	var err error
-	AzureClient, err = azureCommon.NewClientFromEnvironment(*opts.Azure.Environment)
+	AzureClient, err = azureCommon.NewClientFromEnvironment(*opts.Azure.Environment, log.StandardLogger())
 	if err != nil {
-		logger.Panic(err.Error())
+		log.Panic(err.Error())
 	}
 
 	AzureClient.SetUserAgent(UserAgent + gitTag)
@@ -121,17 +120,14 @@ func initMetricCollector() {
 
 	collectorName = "Keyvault"
 	if opts.Scrape.Time.Seconds() > 0 {
-		c := collector.New(collectorName, &MetricsCollectorKeyvault{}, logger.Desugar())
+		c := collector.New(collectorName, &MetricsCollectorKeyvault{}, log.StandardLogger())
 		c.SetScapeTime(opts.Scrape.Time)
 		c.SetConcurrency(opts.Scrape.Concurrency)
 		if err := c.Start(); err != nil {
-			logger.Panic(err.Error())
+			log.Panic(err.Error())
 		}
 	} else {
-		logger.Infow(
-			"collector disabled",
-			zap.String("collector", collectorName),
-		)
+		log.WithField("collector", collectorName).Info("collector disabled")
 	}
 }
 
@@ -140,10 +136,10 @@ func startHttpServer() {
 	// healthz
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if _, err := fmt.Fprint(w, "Ok"); err != nil {
-			logger.Error(err)
+			log.Error(err)
 		}
 	})
 
 	http.Handle("/metrics", azuretracing.RegisterAzureMetricAutoClean(promhttp.Handler()))
-	logger.Panic(http.ListenAndServe(opts.ServerBind, nil))
+	log.Panic(http.ListenAndServe(opts.ServerBind, nil))
 }
