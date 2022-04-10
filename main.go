@@ -1,13 +1,11 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"os"
 	"runtime"
 
-	"github.com/Azure/azure-sdk-for-go/profiles/latest/resources/mgmt/subscriptions"
 	"github.com/jessevdk/go-flags"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	azureCommon "github.com/webdevops/go-common/azure"
@@ -31,7 +29,7 @@ var (
 	logger *zap.SugaredLogger
 
 	AzureClient                *azureCommon.Client
-	AzureSubscriptionsIterator *azureCommon.IteratorSubscriptions
+	AzureSubscriptionsIterator *azureCommon.SubscriptionsIterator
 
 	// Git version information
 	gitCommit = "<unknown>"
@@ -40,7 +38,7 @@ var (
 
 func main() {
 	initArgparser()
-	defer initLogger()()
+	initLogger()
 
 	logger.Infof("starting azure-keyvault-exporter v%s (%s; %s; by %v)", gitTag, gitCommit, runtime.Version(), Author)
 	logger.Info(string(opts.GetJson()))
@@ -72,7 +70,7 @@ func initArgparser() {
 	}
 }
 
-func initLogger() func() {
+func initLogger() {
 	loggerConfig := zap.NewProductionConfig()
 	loggerConfig.Encoding = "console"
 	loggerConfig.EncoderConfig.EncodeTime = zapcore.ISO8601TimeEncoder
@@ -102,11 +100,6 @@ func initLogger() func() {
 	}
 
 	logger = zapLogger.Sugar()
-	return func() {
-		if err := logger.Sync(); err != nil {
-			panic(err)
-		}
-	}
 }
 
 func initAzureConnection() {
@@ -117,23 +110,9 @@ func initAzureConnection() {
 	}
 
 	AzureClient.SetUserAgent(UserAgent + gitTag)
-
-	AzureSubscriptionsIterator = azureCommon.NewIteratorSubscriptions(AzureClient)
-
-	if len(opts.Azure.Subscription) >= 0 {
-		subscriptionsClient := subscriptions.NewClientWithBaseURI(AzureClient.Environment.ResourceManagerEndpoint)
-		AzureClient.DecorateAzureAutorest(&subscriptionsClient.Client)
-
-		subscriptionList := []subscriptions.Subscription{}
-		for _, subscriptionID := range opts.Azure.Subscription {
-			subscription, err := subscriptionsClient.Get(context.Background(), subscriptionID)
-			if err != nil {
-				panic(err)
-			}
-			subscriptionList = append(subscriptionList, subscription)
-		}
-
-		AzureSubscriptionsIterator.SetFixedSubscriptions(subscriptionList)
+	AzureSubscriptionsIterator = azureCommon.NewSubscriptionIterator(AzureClient)
+	if len(opts.Azure.Subscription) >= 1 {
+		AzureSubscriptionsIterator.SetSubscriptions(opts.Azure.Subscription...)
 	}
 }
 

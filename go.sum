@@ -238,6 +238,10 @@ github.com/stretchr/testify v1.7.0 h1:nwc3DEeHmmLAfoZucVR881uASk0Mfjw8xYJ99tb5Cc
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/webdevops/go-common v0.0.0-20220409172346-4713df3d3ff5 h1:viglZsnNmdr8Tk7YgIvQVz5EYOe08CJ4DNB+Vziw4t8=
 github.com/webdevops/go-common v0.0.0-20220409172346-4713df3d3ff5/go.mod h1:EGb6BMDxY+CD/bphCq6xcQKCFLI1e/8U770aqYr4kJM=
+github.com/webdevops/go-common v0.0.0-20220410105213-bb21694e541d h1:sRNKrXc+aGxoDAAjQr+rQCqGN4K8bio7qSQzXbDPgRM=
+github.com/webdevops/go-common v0.0.0-20220410105213-bb21694e541d/go.mod h1:EGb6BMDxY+CD/bphCq6xcQKCFLI1e/8U770aqYr4kJM=
+github.com/webdevops/go-common v0.0.0-20220410112608-3f36863d9e42 h1:KVYarAvh28MPR5yRu4iZDRKDl+RPqr9FiW36HPMmU7g=
+github.com/webdevops/go-common v0.0.0-20220410112608-3f36863d9e42/go.mod h1:EGb6BMDxY+CD/bphCq6xcQKCFLI1e/8U770aqYr4kJM=
 github.com/yuin/goldmark v1.1.25/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.27/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
 github.com/yuin/goldmark v1.1.32/go.mod h1:3hX8gzYuyVAZsxl0MRgGTJEmQBFcNTphYh9decYSb74=
