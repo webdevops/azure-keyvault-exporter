@@ -19,8 +19,6 @@ import (
 type MetricsCollectorKeyvault struct {
 	collector.Processor
 
-	collector *collector.Collector
-
 	keyvaultAuth autorest.Authorizer
 
 	prometheus struct {
@@ -46,7 +44,7 @@ type MetricsCollectorKeyvault struct {
 
 func (m *MetricsCollectorKeyvault) Setup(collector *collector.Collector) {
 	var err error
-	m.collector = collector
+	m.Processor.Setup(collector)
 
 	m.keyvaultAuth, err = auth.NewAuthorizerFromEnvironmentWithResource(AzureClient.Environment.ResourceIdentifiers.KeyVault)
 	if err != nil {
@@ -205,13 +203,11 @@ func (m *MetricsCollectorKeyvault) Reset() {
 }
 
 func (m *MetricsCollectorKeyvault) Collect(callback chan<- func()) {
-	err := AzureSubscriptionsIterator.ForEachAsync(func(subscription subscriptions.Subscription) {
-		contextLogger := m.collector.Logger.WithField("subscription", *subscription.SubscriptionID)
-		contextLogger.Debug("collecting for subscription")
-		m.collectSubscription(callback, subscription, contextLogger)
+	err := AzureSubscriptionsIterator.ForEach(m.Logger(), func(subscription subscriptions.Subscription, logger *log.Entry) {
+		m.collectSubscription(callback, subscription, logger)
 	})
 	if err != nil {
-		m.collector.Logger.Panic(err)
+		m.Logger().Panic(err)
 	}
 }
 
@@ -219,7 +215,7 @@ func (m *MetricsCollectorKeyvault) collectSubscription(callback chan<- func(), s
 	var keyvaultResult keyvaultMgmt.VaultListResultIterator
 	var err error
 
-	ctx := m.collector.Context
+	ctx := m.Context()
 
 	keyvaultClient := keyvaultMgmt.NewVaultsClientWithBaseURI(AzureClient.Environment.ResourceManagerEndpoint, *subscription.SubscriptionID)
 	AzureClient.DecorateAzureAutorest(&keyvaultClient.BaseClient.Client)
@@ -249,9 +245,9 @@ func (m *MetricsCollectorKeyvault) collectSubscription(callback chan<- func(), s
 		client := keyvault.New()
 		AzureClient.DecorateAzureAutorestWithAuthorizer(&client.Client, m.keyvaultAuth)
 
-		m.collector.WaitGroup.Add()
+		m.WaitGroup().Add()
 		go func(client keyvault.BaseClient, vault keyvaultMgmt.Vault, contextLogger *log.Entry) {
-			defer m.collector.WaitGroup.Done()
+			defer m.WaitGroup().Done()
 			contextLogger.Info("collecting keyvault metrics")
 			m.collectKeyVault(callback, client, vault, contextLogger)
 		}(client, vault, contextLogger)
@@ -265,7 +261,7 @@ func (m *MetricsCollectorKeyvault) collectSubscription(callback chan<- func(), s
 }
 
 func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), client keyvault.BaseClient, vault keyvaultMgmt.Vault, logger *log.Entry) (status bool) {
-	ctx := m.collector.Context
+	ctx := m.Context()
 	status = true
 
 	vaultMetrics := prometheusCommon.NewMetricsList()
