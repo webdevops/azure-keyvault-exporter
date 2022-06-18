@@ -108,10 +108,11 @@ func initAzureConnection() {
 	}
 
 	AzureClient.SetUserAgent(UserAgent + gitTag)
-	AzureSubscriptionsIterator = azureCommon.NewSubscriptionIterator(AzureClient)
 	if len(opts.Azure.Subscription) >= 1 {
-		AzureSubscriptionsIterator.SetSubscriptions(opts.Azure.Subscription...)
+		AzureClient.SetSubscriptionFilter(opts.Azure.Subscription...)
 	}
+
+	AzureSubscriptionsIterator = azureCommon.NewSubscriptionIterator(AzureClient)
 }
 
 func initMetricCollector() {

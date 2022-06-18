@@ -203,7 +203,7 @@ func (m *MetricsCollectorKeyvault) Reset() {
 }
 
 func (m *MetricsCollectorKeyvault) Collect(callback chan<- func()) {
-	err := AzureSubscriptionsIterator.ForEach(m.Logger(), func(subscription subscriptions.Subscription, logger *log.Entry) {
+	err := AzureSubscriptionsIterator.ForEachAsync(m.Logger(), func(subscription subscriptions.Subscription, logger *log.Entry) {
 		m.collectSubscription(callback, subscription, logger)
 	})
 	if err != nil {
