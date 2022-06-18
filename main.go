@@ -116,9 +116,7 @@ func initAzureConnection() {
 }
 
 func initMetricCollector() {
-	var collectorName string
-
-	collectorName = "Keyvault"
+	collectorName := "Keyvault"
 	if opts.Scrape.Time.Seconds() > 0 {
 		c := collector.New(collectorName, &MetricsCollectorKeyvault{}, log.StandardLogger())
 		c.SetScapeTime(opts.Scrape.Time)
