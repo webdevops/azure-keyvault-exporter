@@ -10,9 +10,10 @@ import (
 	"github.com/jessevdk/go-flags"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	log "github.com/sirupsen/logrus"
-	azureCommon "github.com/webdevops/go-common/azure"
-	"github.com/webdevops/go-common/prometheus/azuretracing"
 	"github.com/webdevops/go-common/prometheus/collector"
+
+	"github.com/webdevops/go-common/azuresdk/armclient"
+	"github.com/webdevops/go-common/azuresdk/prometheus/tracing"
 
 	"github.com/webdevops/azure-keyvault-exporter/config"
 )
@@ -26,8 +27,8 @@ var (
 	argparser *flags.Parser
 	opts      config.Opts
 
-	AzureClient                *azureCommon.Client
-	AzureSubscriptionsIterator *azureCommon.SubscriptionsIterator
+	AzureClient                *armclient.ArmClient
+	AzureSubscriptionsIterator *armclient.SubscriptionsIterator
 
 	// Git version information
 	gitCommit = "<unknown>"
@@ -102,17 +103,19 @@ func initLogger() {
 
 func initAzureConnection() {
 	var err error
-	AzureClient, err = azureCommon.NewClientFromEnvironment(*opts.Azure.Environment, log.StandardLogger())
+	AzureClient, err = armclient.NewArmClientWithCloudName(*opts.Azure.Environment, log.StandardLogger())
 	if err != nil {
 		log.Panic(err.Error())
 	}
 
 	AzureClient.SetUserAgent(UserAgent + gitTag)
+
+	// limit subscriptions (if filter is set)
 	if len(opts.Azure.Subscription) >= 1 {
 		AzureClient.SetSubscriptionFilter(opts.Azure.Subscription...)
 	}
 
-	AzureSubscriptionsIterator = azureCommon.NewSubscriptionIterator(AzureClient)
+	AzureSubscriptionsIterator = armclient.NewSubscriptionIterator(AzureClient)
 }
 
 func initMetricCollector() {
@@ -145,6 +148,6 @@ func startHttpServer() {
 		}
 	})
 
-	http.Handle("/metrics", azuretracing.RegisterAzureMetricAutoClean(promhttp.Handler()))
+	http.Handle("/metrics", tracing.RegisterAzureMetricAutoClean(promhttp.Handler()))
 	log.Panic(http.ListenAndServe(opts.ServerBind, nil))
 }

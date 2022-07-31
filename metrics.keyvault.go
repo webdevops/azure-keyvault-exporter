@@ -1,25 +1,23 @@
 package main
 
 import (
-	"time"
+	"context"
 
-	"github.com/Azure/azure-sdk-for-go/profiles/latest/resources/mgmt/subscriptions"
-	"github.com/Azure/azure-sdk-for-go/services/keyvault/2016-10-01/keyvault"
-	keyvaultMgmt "github.com/Azure/azure-sdk-for-go/services/keyvault/mgmt/2016-10-01/keyvault"
-	"github.com/Azure/go-autorest/autorest"
-	"github.com/Azure/go-autorest/autorest/azure/auth"
-	"github.com/Azure/go-autorest/autorest/to"
+	"github.com/Azure/azure-sdk-for-go/sdk/keyvault/azcertificates"
+	"github.com/Azure/azure-sdk-for-go/sdk/keyvault/azkeys"
+	"github.com/Azure/azure-sdk-for-go/sdk/keyvault/azsecrets"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/keyvault/armkeyvault"
+	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armsubscriptions"
 	"github.com/prometheus/client_golang/prometheus"
 	log "github.com/sirupsen/logrus"
-	azureCommon "github.com/webdevops/go-common/azure"
+	"github.com/webdevops/go-common/azuresdk/armclient"
 	prometheusCommon "github.com/webdevops/go-common/prometheus"
 	"github.com/webdevops/go-common/prometheus/collector"
+	"github.com/webdevops/go-common/utils/to"
 )
 
 type MetricsCollectorKeyvault struct {
 	collector.Processor
-
-	keyvaultAuth autorest.Authorizer
 
 	prometheus struct {
 		// general
@@ -43,20 +41,14 @@ type MetricsCollectorKeyvault struct {
 }
 
 func (m *MetricsCollectorKeyvault) Setup(collector *collector.Collector) {
-	var err error
 	m.Processor.Setup(collector)
-
-	m.keyvaultAuth, err = auth.NewAuthorizerFromEnvironmentWithResource(AzureClient.Environment.ResourceIdentifiers.KeyVault)
-	if err != nil {
-		panic(err)
-	}
 
 	m.prometheus.keyvault = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "azurerm_keyvault_info",
 			Help: "Azure KeyVault information",
 		},
-		azureCommon.AddResourceTagsToPrometheusLabelsDefinition(
+		armclient.AddResourceTagsToPrometheusLabelsDefinition(
 			[]string{
 				"subscriptionID",
 				"resourceID",
@@ -203,65 +195,93 @@ func (m *MetricsCollectorKeyvault) Reset() {
 }
 
 func (m *MetricsCollectorKeyvault) Collect(callback chan<- func()) {
-	err := AzureSubscriptionsIterator.ForEachAsync(m.Logger(), func(subscription subscriptions.Subscription, logger *log.Entry) {
-		m.collectSubscription(callback, subscription, logger)
+	ctx := m.Context()
+
+	err := AzureSubscriptionsIterator.ForEachAsync(m.Logger(), func(subscription *armsubscriptions.Subscription, logger *log.Entry) {
+		m.collectSubscription(ctx, callback, subscription, logger)
 	})
 	if err != nil {
 		m.Logger().Panic(err)
 	}
 }
 
-func (m *MetricsCollectorKeyvault) collectSubscription(callback chan<- func(), subscription subscriptions.Subscription, logger *log.Entry) {
-	var keyvaultResult keyvaultMgmt.VaultListResultIterator
+func (m *MetricsCollectorKeyvault) collectSubscription(ctx context.Context, callback chan<- func(), subscription *armsubscriptions.Subscription, logger *log.Entry) {
 	var err error
 
-	ctx := m.Context()
-
-	keyvaultClient := keyvaultMgmt.NewVaultsClientWithBaseURI(AzureClient.Environment.ResourceManagerEndpoint, *subscription.SubscriptionID)
-	AzureClient.DecorateAzureAutorest(&keyvaultClient.BaseClient.Client)
+	keyvaultClient, err := armkeyvault.NewVaultsClient(*subscription.SubscriptionID, AzureClient.GetCred(), AzureClient.NewArmClientOptions())
+	if err != nil {
+		logger.Panic(err)
+	}
 
 	if opts.Azure.ResourceGroup != "" {
-		keyvaultResult, err = keyvaultClient.ListByResourceGroupComplete(ctx, opts.Azure.ResourceGroup, nil)
-	} else {
-		keyvaultResult, err = keyvaultClient.ListBySubscriptionComplete(ctx, nil)
-	}
+		pager := keyvaultClient.NewListByResourceGroupPager(opts.Azure.ResourceGroup, nil)
 
-	if err != nil {
-		log.WithField("subscription", *subscription.SubscriptionID).Panic(err)
-	}
+		for pager.More() {
+			result, err := pager.NextPage(m.Context())
+			if err != nil {
+				logger.Panic(err)
+			}
 
-	keyvaultCount := 0
-	for keyvaultResult.NotDone() {
-		vault := keyvaultResult.Value()
+			if result.Value == nil {
+				continue
+			}
 
-		azureResource, _ := azureCommon.ParseResourceId(*vault.ID)
+			for _, row := range result.Value {
+				keyvault := row
 
-		contextLogger := logger.WithFields(log.Fields{
-			"keyvault":      azureResource.ResourceName,
-			"location":      to.String(vault.Location),
-			"resourceGroup": azureResource.ResourceGroup,
-		})
+				azureResource, _ := armclient.ParseResourceId(*keyvault.ID)
 
-		client := keyvault.New()
-		AzureClient.DecorateAzureAutorestWithAuthorizer(&client.Client, m.keyvaultAuth)
+				contextLogger := logger.WithFields(log.Fields{
+					"keyvault":      azureResource.ResourceName,
+					"location":      to.String(keyvault.Location),
+					"resourceGroup": azureResource.ResourceGroup,
+				})
 
-		m.WaitGroup().Add()
-		go func(client keyvault.BaseClient, vault keyvaultMgmt.Vault, contextLogger *log.Entry) {
-			defer m.WaitGroup().Done()
-			contextLogger.Info("collecting keyvault metrics")
-			m.collectKeyVault(callback, client, vault, contextLogger)
-		}(client, vault, contextLogger)
-
-		if keyvaultResult.NextWithContext(ctx) != nil {
-			break
+				m.WaitGroup().Add()
+				go func(keyvault *armkeyvault.Vault, contextLogger *log.Entry) {
+					defer m.WaitGroup().Done()
+					contextLogger.Info("collecting keyvault metrics")
+					m.collectKeyVault(callback, keyvault, contextLogger)
+				}(keyvault, contextLogger)
+			}
 		}
 
-		keyvaultCount++
+	} else {
+		pager := keyvaultClient.NewListBySubscriptionPager(nil)
+
+		for pager.More() {
+			result, err := pager.NextPage(m.Context())
+			if err != nil {
+				logger.Panic(err)
+			}
+
+			if result.Value == nil {
+				continue
+			}
+
+			for _, row := range result.Value {
+				keyvault := row
+
+				azureResource, _ := armclient.ParseResourceId(*keyvault.ID)
+
+				contextLogger := logger.WithFields(log.Fields{
+					"keyvault":      azureResource.ResourceName,
+					"location":      to.String(keyvault.Location),
+					"resourceGroup": azureResource.ResourceGroup,
+				})
+
+				m.WaitGroup().Add()
+				go func(keyvault *armkeyvault.Vault, contextLogger *log.Entry) {
+					defer m.WaitGroup().Done()
+					contextLogger.Info("collecting keyvault metrics")
+					m.collectKeyVault(callback, keyvault, contextLogger)
+				}(keyvault, contextLogger)
+			}
+		}
 	}
 }
 
-func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), client keyvault.BaseClient, vault keyvaultMgmt.Vault, logger *log.Entry) (status bool) {
-	ctx := m.Context()
+func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), vault *armkeyvault.Vault, logger *log.Entry) (status bool) {
 	status = true
 
 	vaultMetrics := prometheusCommon.NewMetricsList()
@@ -275,300 +295,304 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), clien
 
 	vaultUrl := to.String(vault.Properties.VaultURI)
 
-	vaultResourceId := stringPtrToStringLower(vault.ID)
+	vaultResourceId := to.StringLower(vault.ID)
 
-	azureResource, _ := azureCommon.ParseResourceId(*vault.ID)
+	azureResource, _ := armclient.ParseResourceId(*vault.ID)
 
 	entrySecretsCount := float64(0)
 	entryKeysCount := float64(0)
 	entryCertsCount := float64(0)
 
 	// ########################
-	// Keyvault
+	// Vault
 	// ########################
 
 	vaultLabels := prometheus.Labels{
 		"subscriptionID": azureResource.Subscription,
-		"resourceID":     vaultResourceId,
+		"resourceID":     to.StringLower(vault.ID),
 		"vaultName":      azureResource.ResourceName,
 		"location":       to.String(vault.Location),
 		"resourceGroup":  azureResource.ResourceGroup,
 	}
-	vaultLabels = azureCommon.AddResourceTagsToPrometheusLabels(vaultLabels, vault.Tags, opts.Azure.ResourceTags)
+	vaultLabels = armclient.AddResourceTagsToPrometheusLabels(vaultLabels, vault.Tags, opts.Azure.ResourceTags)
 	vaultMetrics.AddInfo(vaultLabels)
 
 	// ########################
 	// Keys
 	// ########################
 
-	keyResult, err := client.GetKeysComplete(ctx, vaultUrl, nil)
-	if err != nil {
-		logger.Warn(err)
-		vaultStatusMetrics.Add(prometheus.Labels{
-			"resourceID": vaultResourceId,
-			"vaultName":  azureResource.ResourceName,
-			"type":       "access",
-			"scope":      "keys",
-		}, 0)
-	} else {
-		vaultStatusMetrics.Add(prometheus.Labels{
-			"resourceID": vaultResourceId,
-			"vaultName":  azureResource.ResourceName,
-			"type":       "access",
-			"scope":      "keys",
-		}, 1)
-	}
+	keyClient := azkeys.NewClient(vaultUrl, AzureClient.GetCred(), AzureClient.NewAzCoreClientOptions())
+	keyPager := keyClient.NewListKeysPager(nil)
 
-	for keyResult.NotDone() {
-		item := keyResult.Value()
-		entryKeysCount++
-
-		vaultKeyMetrics.AddInfo(prometheus.Labels{
-			"resourceID": vaultResourceId,
-			"vaultName":  azureResource.ResourceName,
-			"keyName":    parseKeyvaultObjectName(to.String(item.Kid)),
-			"keyID":      to.String(item.Kid),
-			"enabled":    boolToString(*item.Attributes.Enabled),
-		})
-
-		// expiry date
-		expiryDate := float64(0)
-		if item.Attributes.Expires != nil {
-			timestamp := time.Unix(0, 0).Add(item.Attributes.Expires.Duration())
-			expiryDate = float64(timestamp.Unix())
-		}
-		vaultKeyStatusMetrics.Add(prometheus.Labels{
-			"resourceID": vaultResourceId,
-			"vaultName":  azureResource.ResourceName,
-			"keyID":      to.String(item.Kid),
-			"type":       "expiry",
-		}, expiryDate)
-
-		// not before
-		notBeforeDate := float64(0)
-		if item.Attributes.NotBefore != nil {
-			timestamp := time.Unix(0, 0).Add(item.Attributes.NotBefore.Duration())
-			notBeforeDate = float64(timestamp.Unix())
-		}
-		vaultKeyStatusMetrics.Add(prometheus.Labels{
-			"resourceID": vaultResourceId,
-			"vaultName":  azureResource.ResourceName,
-			"keyID":      to.String(item.Kid),
-			"type":       "notBefore",
-		}, notBeforeDate)
-
-		// created
-		createdDate := float64(0)
-		if item.Attributes.Created != nil {
-			timestamp := time.Unix(0, 0).Add(item.Attributes.Created.Duration())
-			createdDate = float64(timestamp.Unix())
-		}
-		vaultKeyStatusMetrics.Add(prometheus.Labels{
-			"resourceID": vaultResourceId,
-			"vaultName":  azureResource.ResourceName,
-			"keyID":      to.String(item.Kid),
-			"type":       "created",
-		}, createdDate)
-
-		// updated
-		updatedDate := float64(0)
-		if item.Attributes.Updated != nil {
-			timestamp := time.Unix(0, 0).Add(item.Attributes.Updated.Duration())
-			updatedDate = float64(timestamp.Unix())
-		}
-		vaultKeyStatusMetrics.Add(prometheus.Labels{
-			"resourceID": vaultResourceId,
-			"vaultName":  azureResource.ResourceName,
-			"keyID":      to.String(item.Kid),
-			"type":       "updated",
-		}, updatedDate)
-
-		if keyResult.NextWithContext(ctx) != nil {
+	keyStatus := float64(1)
+	for keyPager.More() {
+		result, err := keyPager.NextPage(m.Context())
+		if err != nil {
+			logger.Warn(err)
+			keyStatus = 0
 			break
 		}
+
+		if result.Value == nil {
+			continue
+		}
+
+		for _, row := range result.Value {
+			item := row
+			entryKeysCount++
+
+			itemID := string(*item.KID)
+			itemName := item.KID.Name()
+
+			vaultKeyMetrics.AddInfo(prometheus.Labels{
+				"resourceID": vaultResourceId,
+				"vaultName":  azureResource.ResourceName,
+				"keyName":    itemName,
+				"keyID":      itemID,
+				"enabled":    to.BoolString(to.Bool(item.Attributes.Enabled)),
+			})
+
+			// expiry date
+			expiryDate := float64(0)
+			if item.Attributes.Expires != nil {
+				expiryDate = float64(item.Attributes.Expires.Unix())
+			}
+			vaultKeyStatusMetrics.Add(prometheus.Labels{
+				"resourceID": vaultResourceId,
+				"vaultName":  azureResource.ResourceName,
+				"keyID":      itemID,
+				"type":       "expiry",
+			}, expiryDate)
+
+			// not before
+			notBeforeDate := float64(0)
+			if item.Attributes.NotBefore != nil {
+				notBeforeDate = float64(item.Attributes.NotBefore.Unix())
+			}
+			vaultKeyStatusMetrics.Add(prometheus.Labels{
+				"resourceID": vaultResourceId,
+				"vaultName":  azureResource.ResourceName,
+				"keyID":      itemID,
+				"type":       "notBefore",
+			}, notBeforeDate)
+
+			// created
+			createdDate := float64(0)
+			if item.Attributes.Created != nil {
+				createdDate = float64(item.Attributes.Created.Unix())
+			}
+			vaultKeyStatusMetrics.Add(prometheus.Labels{
+				"resourceID": vaultResourceId,
+				"vaultName":  azureResource.ResourceName,
+				"keyID":      itemID,
+				"type":       "created",
+			}, createdDate)
+
+			// updated
+			updatedDate := float64(0)
+			if item.Attributes.Updated != nil {
+				updatedDate = float64(item.Attributes.Updated.Unix())
+			}
+			vaultKeyStatusMetrics.Add(prometheus.Labels{
+				"resourceID": vaultResourceId,
+				"vaultName":  azureResource.ResourceName,
+				"keyID":      itemID,
+				"type":       "updated",
+			}, updatedDate)
+		}
 	}
+
+	vaultStatusMetrics.Add(prometheus.Labels{
+		"resourceID": vaultResourceId,
+		"vaultName":  azureResource.ResourceName,
+		"type":       "access",
+		"scope":      "keys",
+	}, keyStatus)
 
 	// ########################
 	// Secrets
 	// ########################
 
-	secretsResult, err := client.GetSecretsComplete(ctx, vaultUrl, nil)
-	if err != nil {
-		logger.Warn(err)
-		vaultStatusMetrics.Add(prometheus.Labels{
-			"resourceID": vaultResourceId,
-			"vaultName":  azureResource.ResourceName,
-			"type":       "access",
-			"scope":      "secrets",
-		}, 0)
-	} else {
-		vaultStatusMetrics.Add(prometheus.Labels{
-			"resourceID": vaultResourceId,
-			"vaultName":  azureResource.ResourceName,
-			"type":       "access",
-			"scope":      "secrets",
-		}, 1)
-	}
+	secretClient := azsecrets.NewClient(vaultUrl, AzureClient.GetCred(), AzureClient.NewAzCoreClientOptions())
+	secretPager := secretClient.NewListSecretsPager(nil)
 
-	for secretsResult.NotDone() {
-		item := secretsResult.Value()
-		entrySecretsCount++
-
-		vaultSecretMetrics.AddInfo(prometheus.Labels{
-			"resourceID": vaultResourceId,
-			"vaultName":  azureResource.ResourceName,
-			"secretName": parseKeyvaultObjectName(to.String(item.ID)),
-			"secretID":   to.String(item.ID),
-			"enabled":    boolToString(to.Bool(item.Attributes.Enabled)),
-		})
-
-		// expiry date
-		expiryDate := float64(0)
-		if item.Attributes.Expires != nil {
-			timestamp := time.Unix(0, 0).Add(item.Attributes.Expires.Duration())
-			expiryDate = float64(timestamp.Unix())
-		}
-		vaultSecretStatusMetrics.Add(prometheus.Labels{
-			"resourceID": vaultResourceId,
-			"vaultName":  azureResource.ResourceName,
-			"secretID":   to.String(item.ID),
-			"type":       "expiry",
-		}, expiryDate)
-
-		// notbefore
-		notBeforeDate := float64(0)
-		if item.Attributes.NotBefore != nil {
-			timestamp := time.Unix(0, 0).Add(item.Attributes.NotBefore.Duration())
-			notBeforeDate = float64(timestamp.Unix())
-		}
-		vaultSecretStatusMetrics.Add(prometheus.Labels{
-			"resourceID": vaultResourceId,
-			"vaultName":  azureResource.ResourceName,
-			"secretID":   to.String(item.ID),
-			"type":       "notBefore",
-		}, notBeforeDate)
-
-		// created
-		createdDate := float64(0)
-		if item.Attributes.Created != nil {
-			timestamp := time.Unix(0, 0).Add(item.Attributes.Created.Duration())
-			createdDate = float64(timestamp.Unix())
-		}
-		vaultSecretStatusMetrics.Add(prometheus.Labels{
-			"resourceID": vaultResourceId,
-			"vaultName":  azureResource.ResourceName,
-			"secretID":   to.String(item.ID),
-			"type":       "created",
-		}, createdDate)
-
-		// updated
-		updatedDate := float64(0)
-		if item.Attributes.Updated != nil {
-			timestamp := time.Unix(0, 0).Add(item.Attributes.Updated.Duration())
-			updatedDate = float64(timestamp.Unix())
-		}
-		vaultSecretStatusMetrics.Add(prometheus.Labels{
-			"resourceID": vaultResourceId,
-			"vaultName":  azureResource.ResourceName,
-			"secretID":   to.String(item.ID),
-			"type":       "updated",
-		}, updatedDate)
-
-		if secretsResult.NextWithContext(ctx) != nil {
+	secretStatus := float64(1)
+	for secretPager.More() {
+		result, err := secretPager.NextPage(m.Context())
+		if err != nil {
+			logger.Warn(err)
+			secretStatus = 0
 			break
 		}
+
+		if result.Value == nil {
+			continue
+		}
+
+		for _, row := range result.Value {
+			item := row
+			entrySecretsCount++
+
+			itemID := string(*item.ID)
+			itemName := item.ID.Name()
+
+			vaultSecretMetrics.AddInfo(prometheus.Labels{
+				"resourceID": vaultResourceId,
+				"vaultName":  azureResource.ResourceName,
+				"secretName": itemName,
+				"secretID":   itemID,
+				"enabled":    to.BoolString(to.Bool(item.Attributes.Enabled)),
+			})
+
+			// expiry date
+			expiryDate := float64(0)
+			if item.Attributes.Expires != nil {
+				expiryDate = float64(item.Attributes.Expires.Unix())
+			}
+			vaultSecretStatusMetrics.Add(prometheus.Labels{
+				"resourceID": vaultResourceId,
+				"vaultName":  azureResource.ResourceName,
+				"secretID":   itemID,
+				"type":       "expiry",
+			}, expiryDate)
+
+			// notbefore
+			notBeforeDate := float64(0)
+			if item.Attributes.NotBefore != nil {
+				notBeforeDate = float64(item.Attributes.NotBefore.Unix())
+			}
+			vaultSecretStatusMetrics.Add(prometheus.Labels{
+				"resourceID": vaultResourceId,
+				"vaultName":  azureResource.ResourceName,
+				"secretID":   itemID,
+				"type":       "notBefore",
+			}, notBeforeDate)
+
+			// created
+			createdDate := float64(0)
+			if item.Attributes.Created != nil {
+				createdDate = float64(item.Attributes.Created.Unix())
+			}
+			vaultSecretStatusMetrics.Add(prometheus.Labels{
+				"resourceID": vaultResourceId,
+				"vaultName":  azureResource.ResourceName,
+				"secretID":   itemID,
+				"type":       "created",
+			}, createdDate)
+
+			// updated
+			updatedDate := float64(0)
+			if item.Attributes.Updated != nil {
+				updatedDate = float64(item.Attributes.Updated.Unix())
+			}
+			vaultSecretStatusMetrics.Add(prometheus.Labels{
+				"resourceID": vaultResourceId,
+				"vaultName":  azureResource.ResourceName,
+				"secretID":   itemID,
+				"type":       "updated",
+			}, updatedDate)
+		}
 	}
+
+	vaultStatusMetrics.Add(prometheus.Labels{
+		"resourceID": vaultResourceId,
+		"vaultName":  azureResource.ResourceName,
+		"type":       "access",
+		"scope":      "secrets",
+	}, secretStatus)
 
 	// ########################
 	// Certificate
 	// ########################
 
-	certificateResult, err := client.GetCertificatesComplete(ctx, vaultUrl, nil)
-	if err != nil {
-		logger.Warn(err)
-		vaultStatusMetrics.Add(prometheus.Labels{
-			"resourceID": vaultResourceId,
-			"vaultName":  azureResource.ResourceName,
-			"type":       "access",
-			"scope":      "certificates",
-		}, 0)
-	} else {
-		vaultStatusMetrics.Add(prometheus.Labels{
-			"resourceID": vaultResourceId,
-			"vaultName":  azureResource.ResourceName,
-			"type":       "access",
-			"scope":      "certificates",
-		}, 1)
-	}
+	certificateClient := azcertificates.NewClient(vaultUrl, AzureClient.GetCred(), AzureClient.NewAzCoreClientOptions())
+	certificatePager := certificateClient.NewListCertificatesPager(nil)
 
-	for certificateResult.NotDone() {
-		item := certificateResult.Value()
-		entryCertsCount++
-
-		vaultCertificateMetrics.AddInfo(prometheus.Labels{
-			"resourceID":      vaultResourceId,
-			"vaultName":       azureResource.ResourceName,
-			"certificateName": parseKeyvaultObjectName(to.String(item.ID)),
-			"certificateID":   to.String(item.ID),
-			"enabled":         boolToString(to.Bool(item.Attributes.Enabled)),
-		})
-
-		// expiry
-		expiryDate := float64(0)
-		if item.Attributes.Expires != nil {
-			timestamp := time.Unix(0, 0).Add(item.Attributes.Expires.Duration())
-			expiryDate = float64(timestamp.Unix())
-		}
-		vaultCertificateStatusMetrics.Add(prometheus.Labels{
-			"resourceID":    vaultResourceId,
-			"vaultName":     azureResource.ResourceName,
-			"certificateID": to.String(item.ID),
-			"type":          "expiry",
-		}, expiryDate)
-
-		// notBefore
-		notBeforeDate := float64(0)
-		if item.Attributes.NotBefore != nil {
-			timestamp := time.Unix(0, 0).Add(item.Attributes.NotBefore.Duration())
-			notBeforeDate = float64(timestamp.Unix())
-		}
-		vaultCertificateStatusMetrics.Add(prometheus.Labels{
-			"resourceID":    vaultResourceId,
-			"vaultName":     azureResource.ResourceName,
-			"certificateID": to.String(item.ID),
-			"type":          "notBefore",
-		}, notBeforeDate)
-
-		// created
-		createdDate := float64(0)
-		if item.Attributes.Created != nil {
-			timestamp := time.Unix(0, 0).Add(item.Attributes.Created.Duration())
-			createdDate = float64(timestamp.Unix())
-		}
-		vaultCertificateStatusMetrics.Add(prometheus.Labels{
-			"resourceID":    vaultResourceId,
-			"vaultName":     azureResource.ResourceName,
-			"certificateID": to.String(item.ID),
-			"type":          "created",
-		}, createdDate)
-
-		// updated
-		updatedDate := float64(0)
-		if item.Attributes.Updated != nil {
-			timestamp := time.Unix(0, 0).Add(item.Attributes.Updated.Duration())
-			updatedDate = float64(timestamp.Unix())
-		}
-		vaultCertificateStatusMetrics.Add(prometheus.Labels{
-			"resourceID":    vaultResourceId,
-			"vaultName":     azureResource.ResourceName,
-			"certificateID": to.String(item.ID),
-			"type":          "updated",
-		}, updatedDate)
-
-		if certificateResult.NextWithContext(ctx) != nil {
+	certificateStatus := float64(1)
+	for certificatePager.More() {
+		result, err := certificatePager.NextPage(m.Context())
+		if err != nil {
+			logger.Warn(err)
+			certificateStatus = 0
 			break
 		}
+
+		if result.Value == nil {
+			continue
+		}
+
+		for _, row := range result.Value {
+			item := row
+			entryCertsCount++
+
+			itemID := string(*item.ID)
+			itemName := item.ID.Name()
+
+			vaultCertificateMetrics.AddInfo(prometheus.Labels{
+				"resourceID":      vaultResourceId,
+				"vaultName":       azureResource.ResourceName,
+				"certificateName": itemName,
+				"certificateID":   itemID,
+				"enabled":         to.BoolString(to.Bool(item.Attributes.Enabled)),
+			})
+
+			// expiry
+			expiryDate := float64(0)
+			if item.Attributes.Expires != nil {
+				expiryDate = float64(item.Attributes.Expires.Unix())
+			}
+			vaultCertificateStatusMetrics.Add(prometheus.Labels{
+				"resourceID":    vaultResourceId,
+				"vaultName":     azureResource.ResourceName,
+				"certificateID": itemID,
+				"type":          "expiry",
+			}, expiryDate)
+
+			// notBefore
+			notBeforeDate := float64(0)
+			if item.Attributes.NotBefore != nil {
+				notBeforeDate = float64(item.Attributes.NotBefore.Unix())
+			}
+			vaultCertificateStatusMetrics.Add(prometheus.Labels{
+				"resourceID":    vaultResourceId,
+				"vaultName":     azureResource.ResourceName,
+				"certificateID": itemID,
+				"type":          "notBefore",
+			}, notBeforeDate)
+
+			// created
+			createdDate := float64(0)
+			if item.Attributes.Created != nil {
+				createdDate = float64(item.Attributes.Created.Unix())
+			}
+			vaultCertificateStatusMetrics.Add(prometheus.Labels{
+				"resourceID":    vaultResourceId,
+				"vaultName":     azureResource.ResourceName,
+				"certificateID": itemID,
+				"type":          "created",
+			}, createdDate)
+
+			// updated
+			updatedDate := float64(0)
+			if item.Attributes.Updated != nil {
+				updatedDate = float64(item.Attributes.Updated.Unix())
+			}
+			vaultCertificateStatusMetrics.Add(prometheus.Labels{
+				"resourceID":    vaultResourceId,
+				"vaultName":     azureResource.ResourceName,
+				"certificateID": itemID,
+				"type":          "updated",
+			}, updatedDate)
+
+		}
 	}
+
+	vaultStatusMetrics.Add(prometheus.Labels{
+		"resourceID": vaultResourceId,
+		"vaultName":  azureResource.ResourceName,
+		"type":       "access",
+		"scope":      "certificates",
+	}, certificateStatus)
 
 	// ########################
 	// Processing
