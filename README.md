@@ -16,22 +16,24 @@ Usage:
   azure-keyvault-exporter [OPTIONS]
 
 Application Options:
-      --debug                debug mode [$DEBUG]
-  -v, --verbose              verbose mode [$VERBOSE]
+      --log.debug            debug mode [$LOG_DEBUG]
+      --log.trace            trace mode [$LOG_TRACE]
       --log.json             Switch log output to json format [$LOG_JSON]
       --azure.environment=   Azure environment name (default: AZUREPUBLICCLOUD) [$AZURE_ENVIRONMENT]
       --azure.subscription=  Azure subscription ID (space delimiter) [$AZURE_SUBSCRIPTION_ID]
       --azure.resourcegroup= Azure ResourceGroup [$AZURE_RESOURCEGROUP]
       --azure.resource-tag=  Azure Resource tags (space delimiter) (default: owner) [$AZURE_RESOURCE_TAG]
       --scrape.time=         Default scrape time (time.duration) (default: 5m) [$SCRAPE_TIME]
+      --scrape.concurrency=  Defines who many Keyvaults can be scraped at the same time (default: 10) [$SCRAPE_CONCURRENCY]
       --bind=                Server address (default: :8080) [$SERVER_BIND]
 
 Help Options:
   -h, --help                 Show this help message
-
 ```
 
-for Azure API authentication (using ENV vars) see https://docs.microsoft.com/en-us/azure/developer/go/azure-sdk-authentication
+for Azure API authentication (using ENV vars) see following documentations:
+- https://github.com/webdevops/go-common/blob/main/azuresdk/README.md
+- https://docs.microsoft.com/en-us/azure/developer/go/azure-sdk-authentication
 
 ## Metrics
 
