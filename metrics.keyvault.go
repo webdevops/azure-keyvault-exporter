@@ -321,7 +321,10 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), vault
 	// Keys
 	// ########################
 
-	keyClient := azkeys.NewClient(vaultUrl, AzureClient.GetCred(), AzureClient.NewAzCoreClientOptions())
+	keyOpts := azkeys.ClientOptions{
+		ClientOptions: *AzureClient.NewAzCoreClientOptions(),
+	}
+	keyClient := azkeys.NewClient(vaultUrl, AzureClient.GetCred(), &keyOpts)
 	keyPager := keyClient.NewListKeysPager(nil)
 
 	keyStatus := float64(1)
@@ -413,7 +416,10 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), vault
 	// Secrets
 	// ########################
 
-	secretClient := azsecrets.NewClient(vaultUrl, AzureClient.GetCred(), AzureClient.NewAzCoreClientOptions())
+	secretOpts := azsecrets.ClientOptions{
+		ClientOptions: *AzureClient.NewAzCoreClientOptions(),
+	}
+	secretClient := azsecrets.NewClient(vaultUrl, AzureClient.GetCred(), &secretOpts)
 	secretPager := secretClient.NewListSecretsPager(nil)
 
 	secretStatus := float64(1)
@@ -505,7 +511,10 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), vault
 	// Certificate
 	// ########################
 
-	certificateClient := azcertificates.NewClient(vaultUrl, AzureClient.GetCred(), AzureClient.NewAzCoreClientOptions())
+	certificateOpts := azcertificates.ClientOptions{
+		ClientOptions: *AzureClient.NewAzCoreClientOptions(),
+	}
+	certificateClient := azcertificates.NewClient(vaultUrl, AzureClient.GetCred(), &certificateOpts)
 	certificatePager := certificateClient.NewListCertificatesPager(nil)
 
 	certificateStatus := float64(1)
