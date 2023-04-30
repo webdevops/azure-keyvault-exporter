@@ -29,7 +29,7 @@ var (
 
 	AzureClient                *armclient.ArmClient
 	AzureSubscriptionsIterator *armclient.SubscriptionsIterator
-	AzureResourceTagConfig     armclient.ResourceTagConfig
+	AzureResourceTagManager    *armclient.ResourceTagManager
 
 	// Git version information
 	gitCommit = "<unknown>"
@@ -86,7 +86,7 @@ func initAzureConnection() {
 
 	AzureSubscriptionsIterator = armclient.NewSubscriptionIterator(AzureClient)
 
-	AzureResourceTagConfig, err = AzureClient.TagManager.ParseTagConfig(opts.Azure.ResourceTags)
+	AzureResourceTagManager, err = AzureClient.TagManager.ParseTagConfig(opts.Azure.ResourceTags)
 	if err != nil {
 		logger.Fatalf(`unable to parse resourceTag configuration "%s": %v"`, opts.Azure.ResourceTags, err.Error())
 	}

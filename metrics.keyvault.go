@@ -48,7 +48,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *collector.Collector) {
 			Name: "azurerm_keyvault_info",
 			Help: "Azure KeyVault information",
 		},
-		AzureResourceTagConfig.AddToPrometheusLabels(
+		AzureResourceTagManager.AddToPrometheusLabels(
 			[]string{
 				"subscriptionID",
 				"resourceID",
@@ -313,7 +313,7 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), vault
 		"location":       to.String(vault.Location),
 		"resourceGroup":  azureResource.ResourceGroup,
 	}
-	vaultLabels = AzureClient.TagManager.AddResourceTagsToPrometheusLabels(m.Context(), vaultLabels, vaultResourceId, AzureResourceTagConfig)
+	vaultLabels = AzureResourceTagManager.AddResourceTagsToPrometheusLabels(m.Context(), vaultLabels, vaultResourceId)
 	vaultMetrics.AddInfo(vaultLabels)
 
 	// ########################
