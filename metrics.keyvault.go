@@ -9,11 +9,11 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/keyvault/armkeyvault"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armsubscriptions"
 	"github.com/prometheus/client_golang/prometheus"
-	log "github.com/sirupsen/logrus"
 	"github.com/webdevops/go-common/azuresdk/armclient"
 	prometheusCommon "github.com/webdevops/go-common/prometheus"
 	"github.com/webdevops/go-common/prometheus/collector"
 	"github.com/webdevops/go-common/utils/to"
+	"go.uber.org/zap"
 )
 
 type MetricsCollectorKeyvault struct {
@@ -197,7 +197,7 @@ func (m *MetricsCollectorKeyvault) Reset() {
 func (m *MetricsCollectorKeyvault) Collect(callback chan<- func()) {
 	ctx := m.Context()
 
-	err := AzureSubscriptionsIterator.ForEachAsync(m.Logger(), func(subscription *armsubscriptions.Subscription, logger *log.Entry) {
+	err := AzureSubscriptionsIterator.ForEachAsync(m.Logger(), func(subscription *armsubscriptions.Subscription, logger *zap.SugaredLogger) {
 		m.collectSubscription(ctx, callback, subscription, logger)
 	})
 	if err != nil {
@@ -205,7 +205,7 @@ func (m *MetricsCollectorKeyvault) Collect(callback chan<- func()) {
 	}
 }
 
-func (m *MetricsCollectorKeyvault) collectSubscription(ctx context.Context, callback chan<- func(), subscription *armsubscriptions.Subscription, logger *log.Entry) {
+func (m *MetricsCollectorKeyvault) collectSubscription(ctx context.Context, callback chan<- func(), subscription *armsubscriptions.Subscription, logger *zap.SugaredLogger) {
 	var err error
 
 	keyvaultClient, err := armkeyvault.NewVaultsClient(*subscription.SubscriptionID, AzureClient.GetCred(), AzureClient.NewArmClientOptions())
@@ -231,14 +231,14 @@ func (m *MetricsCollectorKeyvault) collectSubscription(ctx context.Context, call
 
 				azureResource, _ := armclient.ParseResourceId(*keyvault.ID)
 
-				contextLogger := logger.WithFields(log.Fields{
-					"keyvault":      azureResource.ResourceName,
-					"location":      to.String(keyvault.Location),
-					"resourceGroup": azureResource.ResourceGroup,
-				})
+				contextLogger := logger.With(
+					zap.String("keyvault", azureResource.ResourceName),
+					zap.String("location", to.String(keyvault.Location)),
+					zap.String("resourceGroup", azureResource.ResourceGroup),
+				)
 
 				m.WaitGroup().Add()
-				go func(keyvault *armkeyvault.Vault, contextLogger *log.Entry) {
+				go func(keyvault *armkeyvault.Vault, contextLogger *zap.SugaredLogger) {
 					defer m.WaitGroup().Done()
 					contextLogger.Info("collecting keyvault metrics")
 					m.collectKeyVault(callback, keyvault, contextLogger)
@@ -264,14 +264,14 @@ func (m *MetricsCollectorKeyvault) collectSubscription(ctx context.Context, call
 
 				azureResource, _ := armclient.ParseResourceId(*keyvault.ID)
 
-				contextLogger := logger.WithFields(log.Fields{
-					"keyvault":      azureResource.ResourceName,
-					"location":      to.String(keyvault.Location),
-					"resourceGroup": azureResource.ResourceGroup,
-				})
+				contextLogger := logger.With(
+					zap.String("keyvault", azureResource.ResourceName),
+					zap.String("location", to.String(keyvault.Location)),
+					zap.String("resourceGroup", azureResource.ResourceGroup),
+				)
 
 				m.WaitGroup().Add()
-				go func(keyvault *armkeyvault.Vault, contextLogger *log.Entry) {
+				go func(keyvault *armkeyvault.Vault, contextLogger *zap.SugaredLogger) {
 					defer m.WaitGroup().Done()
 					contextLogger.Info("collecting keyvault metrics")
 					m.collectKeyVault(callback, keyvault, contextLogger)
@@ -281,7 +281,7 @@ func (m *MetricsCollectorKeyvault) collectSubscription(ctx context.Context, call
 	}
 }
 
-func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), vault *armkeyvault.Vault, logger *log.Entry) (status bool) {
+func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), vault *armkeyvault.Vault, logger *zap.SugaredLogger) (status bool) {
 	status = true
 
 	vaultMetrics := prometheusCommon.NewMetricsList()
@@ -324,7 +324,10 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), vault
 	keyOpts := azkeys.ClientOptions{
 		ClientOptions: *AzureClient.NewAzCoreClientOptions(),
 	}
-	keyClient := azkeys.NewClient(vaultUrl, AzureClient.GetCred(), &keyOpts)
+	keyClient, err := azkeys.NewClient(vaultUrl, AzureClient.GetCred(), &keyOpts)
+	if err != nil {
+		logger.Panic(err.Error())
+	}
 	keyPager := keyClient.NewListKeysPager(nil)
 
 	keyStatus := float64(1)
@@ -419,7 +422,10 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), vault
 	secretOpts := azsecrets.ClientOptions{
 		ClientOptions: *AzureClient.NewAzCoreClientOptions(),
 	}
-	secretClient := azsecrets.NewClient(vaultUrl, AzureClient.GetCred(), &secretOpts)
+	secretClient, err := azsecrets.NewClient(vaultUrl, AzureClient.GetCred(), &secretOpts)
+	if err != nil {
+		logger.Panic(err.Error())
+	}
 	secretPager := secretClient.NewListSecretsPager(nil)
 
 	secretStatus := float64(1)
@@ -514,7 +520,10 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), vault
 	certificateOpts := azcertificates.ClientOptions{
 		ClientOptions: *AzureClient.NewAzCoreClientOptions(),
 	}
-	certificateClient := azcertificates.NewClient(vaultUrl, AzureClient.GetCred(), &certificateOpts)
+	certificateClient, err := azcertificates.NewClient(vaultUrl, AzureClient.GetCred(), &certificateOpts)
+	if err != nil {
+		logger.Panic(err.Error())
+	}
 	certificatePager := certificateClient.NewListCertificatesPager(nil)
 
 	certificateStatus := float64(1)
