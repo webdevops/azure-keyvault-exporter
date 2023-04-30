@@ -10,7 +10,6 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armsubscriptions"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/webdevops/go-common/azuresdk/armclient"
-	prometheusCommon "github.com/webdevops/go-common/prometheus"
 	"github.com/webdevops/go-common/prometheus/collector"
 	"github.com/webdevops/go-common/utils/to"
 	"go.uber.org/zap"
@@ -58,7 +57,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *collector.Collector) {
 			},
 		),
 	)
-	prometheus.MustRegister(m.prometheus.keyvault)
+	m.Collector.RegisterMetricList("keyvault", m.prometheus.keyvault, true)
 
 	m.prometheus.keyvaultStatus = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -72,7 +71,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *collector.Collector) {
 			"scope",
 		},
 	)
-	prometheus.MustRegister(m.prometheus.keyvaultStatus)
+	m.Collector.RegisterMetricList("keyvaultStatus", m.prometheus.keyvaultStatus, true)
 
 	m.prometheus.keyvaultEntryCount = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -85,7 +84,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *collector.Collector) {
 			"type",
 		},
 	)
-	prometheus.MustRegister(m.prometheus.keyvaultEntryCount)
+	m.Collector.RegisterMetricList("keyvaultEntryCount", m.prometheus.keyvaultEntryCount, true)
 
 	// ------------------------------------------
 	// key
@@ -102,7 +101,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *collector.Collector) {
 			"enabled",
 		},
 	)
-	prometheus.MustRegister(m.prometheus.keyvaultKeyInfo)
+	m.Collector.RegisterMetricList("keyvaultKeyInfo", m.prometheus.keyvaultKeyInfo, true)
 
 	m.prometheus.keyvaultKeyStatus = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -116,7 +115,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *collector.Collector) {
 			"type",
 		},
 	)
-	prometheus.MustRegister(m.prometheus.keyvaultKeyStatus)
+	m.Collector.RegisterMetricList("keyvaultKeyStatus", m.prometheus.keyvaultKeyStatus, true)
 
 	// ------------------------------------------
 	// secret
@@ -133,7 +132,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *collector.Collector) {
 			"enabled",
 		},
 	)
-	prometheus.MustRegister(m.prometheus.keyvaultSecretInfo)
+	m.Collector.RegisterMetricList("keyvaultSecretInfo", m.prometheus.keyvaultSecretInfo, true)
 
 	m.prometheus.keyvaultSecretStatus = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -147,7 +146,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *collector.Collector) {
 			"type",
 		},
 	)
-	prometheus.MustRegister(m.prometheus.keyvaultSecretStatus)
+	m.Collector.RegisterMetricList("keyvaultSecretStatus", m.prometheus.keyvaultSecretStatus, true)
 
 	// ------------------------------------------
 	// certificate
@@ -164,7 +163,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *collector.Collector) {
 			"enabled",
 		},
 	)
-	prometheus.MustRegister(m.prometheus.keyvaultCertificateInfo)
+	m.Collector.RegisterMetricList("keyvaultCertificateInfo", m.prometheus.keyvaultCertificateInfo, true)
 
 	m.prometheus.keyvaultCertificateStatus = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -178,7 +177,8 @@ func (m *MetricsCollectorKeyvault) Setup(collector *collector.Collector) {
 			"type",
 		},
 	)
-	prometheus.MustRegister(m.prometheus.keyvaultCertificateStatus)
+	m.Collector.RegisterMetricList("keyvaultCertificateStatus", m.prometheus.keyvaultCertificateStatus, true)
+
 }
 
 func (m *MetricsCollectorKeyvault) Reset() {
@@ -283,14 +283,15 @@ func (m *MetricsCollectorKeyvault) collectSubscription(ctx context.Context, call
 func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), vault *armkeyvault.Vault, logger *zap.SugaredLogger) (status bool) {
 	status = true
 
-	vaultMetrics := prometheusCommon.NewMetricsList()
-	vaultStatusMetrics := prometheusCommon.NewMetricsList()
-	vaultKeyMetrics := prometheusCommon.NewMetricsList()
-	vaultKeyStatusMetrics := prometheusCommon.NewMetricsList()
-	vaultSecretMetrics := prometheusCommon.NewMetricsList()
-	vaultSecretStatusMetrics := prometheusCommon.NewMetricsList()
-	vaultCertificateMetrics := prometheusCommon.NewMetricsList()
-	vaultCertificateStatusMetrics := prometheusCommon.NewMetricsList()
+	vaultMetrics := m.Collector.GetMetricList("keyvault")
+	vaultStatusMetrics := m.Collector.GetMetricList("keyvaultStatus")
+	vaultKeyMetrics := m.Collector.GetMetricList("keyvaultKeyInfo")
+	vaultKeyStatusMetrics := m.Collector.GetMetricList("keyvaultKeyStatus")
+	vaultSecretMetrics := m.Collector.GetMetricList("keyvaultSecretInfo")
+	vaultSecretStatusMetrics := m.Collector.GetMetricList("keyvaultSecretStatus")
+	vaultCertificateMetrics := m.Collector.GetMetricList("keyvaultCertificateInfo")
+	vaultCertificateStatusMetrics := m.Collector.GetMetricList("keyvaultCertificateStatus")
+	vaultEntryCountMetrics := m.Collector.GetMetricList("keyvaultEntryCount")
 
 	vaultUrl := to.String(vault.Properties.VaultURI)
 
@@ -611,38 +612,23 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), vault
 		"scope":      "certificates",
 	}, certificateStatus)
 
-	// ########################
-	// Processing
-	// ########################
+	vaultEntryCountMetrics.Add(prometheus.Labels{
+		"resourceID": vaultResourceId,
+		"vaultName":  azureResource.ResourceName,
+		"type":       "secrets",
+	}, entrySecretsCount)
 
-	callback <- func() {
-		vaultMetrics.GaugeSet(m.prometheus.keyvault)
-		vaultStatusMetrics.GaugeSet(m.prometheus.keyvaultStatus)
-		vaultKeyMetrics.GaugeSet(m.prometheus.keyvaultKeyInfo)
-		vaultKeyStatusMetrics.GaugeSet(m.prometheus.keyvaultKeyStatus)
-		vaultSecretMetrics.GaugeSet(m.prometheus.keyvaultSecretInfo)
-		vaultSecretStatusMetrics.GaugeSet(m.prometheus.keyvaultSecretStatus)
-		vaultCertificateMetrics.GaugeSet(m.prometheus.keyvaultCertificateInfo)
-		vaultCertificateStatusMetrics.GaugeSet(m.prometheus.keyvaultCertificateStatus)
+	vaultEntryCountMetrics.Add(prometheus.Labels{
+		"resourceID": vaultResourceId,
+		"vaultName":  azureResource.ResourceName,
+		"type":       "keys",
+	}, entryKeysCount)
 
-		m.prometheus.keyvaultEntryCount.With(prometheus.Labels{
-			"resourceID": vaultResourceId,
-			"vaultName":  azureResource.ResourceName,
-			"type":       "secrets",
-		}).Set(entrySecretsCount)
-
-		m.prometheus.keyvaultEntryCount.With(prometheus.Labels{
-			"resourceID": vaultResourceId,
-			"vaultName":  azureResource.ResourceName,
-			"type":       "keys",
-		}).Set(entryKeysCount)
-
-		m.prometheus.keyvaultEntryCount.With(prometheus.Labels{
-			"resourceID": vaultResourceId,
-			"vaultName":  azureResource.ResourceName,
-			"type":       "certificates",
-		}).Set(entryCertsCount)
-	}
+	vaultEntryCountMetrics.Add(prometheus.Labels{
+		"resourceID": vaultResourceId,
+		"vaultName":  azureResource.ResourceName,
+		"type":       "certificates",
+	}, entryCertsCount)
 
 	return
 }

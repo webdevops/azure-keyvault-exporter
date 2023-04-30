@@ -11,7 +11,7 @@ require (
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/prometheus/client_golang v1.15.0
 	github.com/sirupsen/logrus v1.9.0
-	github.com/webdevops/go-common v0.0.0-20230430190731-7f73f71df7aa
+	github.com/webdevops/go-common v0.0.0-20230430202837-da27003be3a5
 	go.uber.org/zap v1.24.0
 )
 

@@ -74,8 +74,8 @@ github.com/sirupsen/logrus v1.9.0/go.mod h1:naHLuLoDiP4jHNo9R0sCBMtWGeIprob74mVs
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.7.0/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=
 github.com/stretchr/testify v1.8.2 h1:+h33VjcLVPDHtOdpUCuF+7gSuG3yGIftsP1YvFihtJ8=
-github.com/webdevops/go-common v0.0.0-20230430190731-7f73f71df7aa h1:t1eE42wm8KcN4qCgc2RLgwYnCEc8El0Dzp+IBFc2nXc=
-github.com/webdevops/go-common v0.0.0-20230430190731-7f73f71df7aa/go.mod h1:/gBgzF9JefrEJqAqgPlDgwMcBtYwGmqFa3p4g39RvIU=
+github.com/webdevops/go-common v0.0.0-20230430202837-da27003be3a5 h1:jVTIaZtgrCO1aYMn9nht2+V9cZtDXlvNV7gOQKyPIF4=
+github.com/webdevops/go-common v0.0.0-20230430202837-da27003be3a5/go.mod h1:/gBgzF9JefrEJqAqgPlDgwMcBtYwGmqFa3p4g39RvIU=
 go.uber.org/atomic v1.10.0 h1:9qC72Qh0+3MqyJbAn8YU5xVq1frD8bn3JtD2oXtafVQ=
 go.uber.org/atomic v1.10.0/go.mod h1:LUxbIzbOniOlMKjJjyPfpl4v+PKK2cNJn91OQbhoJI0=
 go.uber.org/goleak v1.1.11 h1:wy28qYRKZgnJTxGxvye5/wgWr1EKjmUDGYox5mGlRlI=
