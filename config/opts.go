@@ -24,6 +24,11 @@ type (
 			ResourceTags  []string `long:"azure.resource-tag"      env:"AZURE_RESOURCE_TAG"        env-delim:" "  description:"Azure Resource tags (space delimiter)"                              default:"owner"`
 		}
 
+		// caching
+		Cache struct {
+			Path string `long:"cache.path" env:"CACHE_PATH" description:"Cache path (to folder, file://path... or azblob://storageaccount.blob.core.windows.net/containername)"`
+		}
+
 		// scrape times
 		Scrape struct {
 			Time        time.Duration `long:"scrape.time"         env:"SCRAPE_TIME"         description:"Default scrape time (time.duration)"                         default:"5m"`
@@ -38,6 +43,15 @@ type (
 		}
 	}
 )
+
+func (o *Opts) GetCachePath(path string) (ret *string) {
+	if o.Cache.Path != "" {
+		tmp := o.Cache.Path + "/" + path
+		ret = &tmp
+	}
+
+	return
+}
 
 func (o *Opts) GetJson() []byte {
 	jsonBytes, err := json.Marshal(o)

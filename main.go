@@ -7,7 +7,7 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/jessevdk/go-flags"
+	flags "github.com/jessevdk/go-flags"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/webdevops/go-common/prometheus/collector"
 	"go.uber.org/zap"
@@ -29,6 +29,7 @@ var (
 
 	AzureClient                *armclient.ArmClient
 	AzureSubscriptionsIterator *armclient.SubscriptionsIterator
+	AzureResourceTagConfig     armclient.ResourceTagConfig
 
 	// Git version information
 	gitCommit = "<unknown>"
@@ -84,6 +85,11 @@ func initAzureConnection() {
 	}
 
 	AzureSubscriptionsIterator = armclient.NewSubscriptionIterator(AzureClient)
+
+	AzureResourceTagConfig, err = AzureClient.TagManager.ParseTagConfig(opts.Azure.ResourceTags)
+	if err != nil {
+		logger.Fatalf(`unable to parse resourceTag configuration "%s": %v"`, opts.Azure.ResourceTags, err.Error())
+	}
 }
 
 func initMetricCollector() {
@@ -92,6 +98,7 @@ func initMetricCollector() {
 		c := collector.New(collectorName, &MetricsCollectorKeyvault{}, logger)
 		c.SetScapeTime(opts.Scrape.Time)
 		c.SetConcurrency(opts.Scrape.Concurrency)
+		c.SetCache(opts.GetCachePath("keyvault.json"))
 		if err := c.Start(); err != nil {
 			logger.Fatal(err.Error())
 		}
