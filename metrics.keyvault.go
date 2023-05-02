@@ -181,17 +181,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *collector.Collector) {
 
 }
 
-func (m *MetricsCollectorKeyvault) Reset() {
-	m.prometheus.keyvault.Reset()
-	m.prometheus.keyvaultStatus.Reset()
-	m.prometheus.keyvaultEntryCount.Reset()
-	m.prometheus.keyvaultKeyInfo.Reset()
-	m.prometheus.keyvaultKeyStatus.Reset()
-	m.prometheus.keyvaultSecretInfo.Reset()
-	m.prometheus.keyvaultSecretStatus.Reset()
-	m.prometheus.keyvaultCertificateInfo.Reset()
-	m.prometheus.keyvaultCertificateStatus.Reset()
-}
+func (m *MetricsCollectorKeyvault) Reset() {}
 
 func (m *MetricsCollectorKeyvault) Collect(callback chan<- func()) {
 	ctx := m.Context()
