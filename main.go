@@ -34,6 +34,9 @@ var (
 	// Git version information
 	gitCommit = "<unknown>"
 	gitTag    = "<unknown>"
+
+	// cache config
+	cacheTag = "v1"
 )
 
 func main() {
@@ -84,8 +87,10 @@ func initAzureConnection() {
 		AzureClient.SetSubscriptionFilter(opts.Azure.Subscription...)
 	}
 
+	// init subscription iterator
 	AzureSubscriptionsIterator = armclient.NewSubscriptionIterator(AzureClient)
 
+	// init resource tag manager
 	AzureResourceTagManager, err = AzureClient.TagManager.ParseTagConfig(opts.Azure.ResourceTags)
 	if err != nil {
 		logger.Fatalf(`unable to parse resourceTag configuration "%s": %v"`, opts.Azure.ResourceTags, err.Error())
@@ -93,12 +98,15 @@ func initAzureConnection() {
 }
 
 func initMetricCollector() {
-	collectorName := "Keyvault"
+	collectorName := "keyvault"
 	if opts.Scrape.Time.Seconds() > 0 {
 		c := collector.New(collectorName, &MetricsCollectorKeyvault{}, logger)
 		c.SetScapeTime(opts.Scrape.Time)
 		c.SetConcurrency(opts.Scrape.Concurrency)
-		c.SetCache(opts.GetCachePath("keyvault.json"))
+		c.SetCache(
+			opts.GetCachePath(collectorName+".json"),
+			collector.BuildCacheTag(cacheTag, opts.Azure),
+		)
 		if err := c.Start(); err != nil {
 			logger.Fatal(err.Error())
 		}

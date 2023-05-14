@@ -3,11 +3,11 @@ package main
 import (
 	"context"
 
-	"github.com/Azure/azure-sdk-for-go/sdk/keyvault/azcertificates"
-	"github.com/Azure/azure-sdk-for-go/sdk/keyvault/azkeys"
-	"github.com/Azure/azure-sdk-for-go/sdk/keyvault/azsecrets"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/keyvault/armkeyvault"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armsubscriptions"
+	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azcertificates"
+	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azkeys"
+	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/webdevops/go-common/azuresdk/armclient"
 	"github.com/webdevops/go-common/prometheus/collector"
