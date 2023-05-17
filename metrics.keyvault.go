@@ -196,76 +196,59 @@ func (m *MetricsCollectorKeyvault) Collect(callback chan<- func()) {
 
 func (m *MetricsCollectorKeyvault) collectSubscription(ctx context.Context, callback chan<- func(), subscription *armsubscriptions.Subscription, logger *zap.SugaredLogger) {
 	var err error
+	filterResourceIdMap := map[string]string{}
+
+	if opts.KeyVault.Filter != nil {
+		filterSubscriptions := []string{*subscription.SubscriptionID}
+		filterResourceIdMap, err = AzureClient.ListResourceIdsWithKustoFilter(m.Context(), filterSubscriptions, *opts.KeyVault.Filter)
+		if err != nil {
+			logger.Fatal(err)
+		}
+	}
 
 	keyvaultClient, err := armkeyvault.NewVaultsClient(*subscription.SubscriptionID, AzureClient.GetCred(), AzureClient.NewArmClientOptions())
 	if err != nil {
 		logger.Panic(err)
 	}
 
-	if opts.Azure.ResourceGroup != "" {
-		pager := keyvaultClient.NewListByResourceGroupPager(opts.Azure.ResourceGroup, nil)
+	pager := keyvaultClient.NewListBySubscriptionPager(nil)
 
-		for pager.More() {
-			result, err := pager.NextPage(m.Context())
-			if err != nil {
-				logger.Panic(err)
-			}
-
-			if result.Value == nil {
-				continue
-			}
-
-			for _, row := range result.Value {
-				keyvault := row
-
-				azureResource, _ := armclient.ParseResourceId(*keyvault.ID)
-
-				contextLogger := logger.With(
-					zap.String("keyvault", azureResource.ResourceName),
-					zap.String("location", to.String(keyvault.Location)),
-					zap.String("resourceGroup", azureResource.ResourceGroup),
-				)
-
-				m.WaitGroup().Add()
-				go func(keyvault *armkeyvault.Vault, contextLogger *zap.SugaredLogger) {
-					defer m.WaitGroup().Done()
-					contextLogger.Info("collecting keyvault metrics")
-					m.collectKeyVault(callback, keyvault, contextLogger)
-				}(keyvault, contextLogger)
-			}
+	for pager.More() {
+		result, err := pager.NextPage(m.Context())
+		if err != nil {
+			logger.Panic(err)
 		}
 
-	} else {
-		pager := keyvaultClient.NewListBySubscriptionPager(nil)
+		if result.Value == nil {
+			continue
+		}
 
-		for pager.More() {
-			result, err := pager.NextPage(m.Context())
-			if err != nil {
-				logger.Panic(err)
+		for _, row := range result.Value {
+			keyvault := row
+
+			if opts.KeyVault.Filter != nil {
+				// filter is active, check if resourceid was found earlier using $filter list call
+				resourceId := to.StringLower(keyvault.ID)
+				if _, exists := filterResourceIdMap[resourceId]; !exists {
+					logger.Debugf(`ignoring %v, not matching keyvault filter`, resourceId)
+					continue
+				}
 			}
 
-			if result.Value == nil {
-				continue
-			}
+			azureResource, _ := armclient.ParseResourceId(*keyvault.ID)
 
-			for _, row := range result.Value {
-				keyvault := row
+			contextLogger := logger.With(
+				zap.String("keyvault", azureResource.ResourceName),
+				zap.String("location", to.String(keyvault.Location)),
+				zap.String("resourceGroup", azureResource.ResourceGroup),
+			)
 
-				azureResource, _ := armclient.ParseResourceId(*keyvault.ID)
-
-				contextLogger := logger.With(
-					zap.String("keyvault", azureResource.ResourceName),
-					zap.String("location", to.String(keyvault.Location)),
-					zap.String("resourceGroup", azureResource.ResourceGroup),
-				)
-
-				m.WaitGroup().Add()
-				go func(keyvault *armkeyvault.Vault, contextLogger *zap.SugaredLogger) {
-					defer m.WaitGroup().Done()
-					contextLogger.Info("collecting keyvault metrics")
-					m.collectKeyVault(callback, keyvault, contextLogger)
-				}(keyvault, contextLogger)
-			}
+			m.WaitGroup().Add()
+			go func(keyvault *armkeyvault.Vault, contextLogger *zap.SugaredLogger) {
+				defer m.WaitGroup().Done()
+				contextLogger.Info("collecting keyvault metrics")
+				m.collectKeyVault(callback, keyvault, contextLogger)
+			}(keyvault, contextLogger)
 		}
 	}
 }

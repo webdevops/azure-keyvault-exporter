@@ -105,7 +105,7 @@ func initMetricCollector() {
 		c.SetConcurrency(opts.Scrape.Concurrency)
 		c.SetCache(
 			opts.GetCachePath(collectorName+".json"),
-			collector.BuildCacheTag(cacheTag, opts.Azure),
+			collector.BuildCacheTag(cacheTag, opts.Azure, opts.KeyVault),
 		)
 		if err := c.Start(); err != nil {
 			logger.Fatal(err.Error())
