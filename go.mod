@@ -10,7 +10,7 @@ require (
 	github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets v0.13.0
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/prometheus/client_golang v1.15.1
-	github.com/webdevops/go-common v0.0.0-20230517234636-ac5459a3bd24
+	github.com/webdevops/go-common v0.0.0-20230518215917-ac903507adc3
 	go.uber.org/zap v1.24.0
 )
 

@@ -22,7 +22,7 @@ type (
 		}
 
 		KeyVault struct {
-			Filter *string `long:"keyvault.filter"   env:"KEYVAULT_FILTER"   description:"Filter KeyVaults via ResourceGraph kusto filter, query: 'resource | ${filter} | project id'"`
+			Filter string `long:"keyvault.filter"   env:"KEYVAULT_FILTER"   description:"Filter KeyVaults via ResourceGraph kusto filter, query: 'resource | ${filter} | project id'"`
 		}
 
 		// caching

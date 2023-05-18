@@ -184,27 +184,45 @@ func (m *MetricsCollectorKeyvault) Setup(collector *collector.Collector) {
 func (m *MetricsCollectorKeyvault) Reset() {}
 
 func (m *MetricsCollectorKeyvault) Collect(callback chan<- func()) {
+	var filterResourceIdMap *map[string]string
 	ctx := m.Context()
 
+	if len(opts.KeyVault.Filter) > 0 {
+		// get list of subscriptions
+		subscriptionList, err := AzureSubscriptionsIterator.ListSubscriptions()
+		if err != nil {
+			panic(err)
+		}
+
+		filterSubscriptions := []string{}
+		for _, subscription := range subscriptionList {
+			filterSubscriptions = append(filterSubscriptions, *subscription.SubscriptionID)
+		}
+
+		filters := []string{
+			`where type =~ "microsoft.keyvault/vaults"`,
+			opts.KeyVault.Filter,
+		}
+
+		// get list of resourceids based on kusto query
+		resourceIdMap, err := AzureClient.ListResourceIdsWithKustoFilter(ctx, filterSubscriptions, filters)
+		if err != nil {
+			logger.Fatal(err)
+		}
+
+		filterResourceIdMap = &resourceIdMap
+	}
+
 	err := AzureSubscriptionsIterator.ForEachAsync(m.Logger(), func(subscription *armsubscriptions.Subscription, logger *zap.SugaredLogger) {
-		m.collectSubscription(ctx, callback, subscription, logger)
+		m.collectSubscription(ctx, callback, subscription, logger, filterResourceIdMap)
 	})
 	if err != nil {
 		m.Logger().Panic(err)
 	}
 }
 
-func (m *MetricsCollectorKeyvault) collectSubscription(ctx context.Context, callback chan<- func(), subscription *armsubscriptions.Subscription, logger *zap.SugaredLogger) {
+func (m *MetricsCollectorKeyvault) collectSubscription(ctx context.Context, callback chan<- func(), subscription *armsubscriptions.Subscription, logger *zap.SugaredLogger, filterResourceIdMap *map[string]string) {
 	var err error
-	filterResourceIdMap := map[string]string{}
-
-	if opts.KeyVault.Filter != nil {
-		filterSubscriptions := []string{*subscription.SubscriptionID}
-		filterResourceIdMap, err = AzureClient.ListResourceIdsWithKustoFilter(m.Context(), filterSubscriptions, *opts.KeyVault.Filter)
-		if err != nil {
-			logger.Fatal(err)
-		}
-	}
 
 	keyvaultClient, err := armkeyvault.NewVaultsClient(*subscription.SubscriptionID, AzureClient.GetCred(), AzureClient.NewArmClientOptions())
 	if err != nil {
@@ -226,10 +244,10 @@ func (m *MetricsCollectorKeyvault) collectSubscription(ctx context.Context, call
 		for _, row := range result.Value {
 			keyvault := row
 
-			if opts.KeyVault.Filter != nil {
+			if filterResourceIdMap != nil {
 				// filter is active, check if resourceid was found earlier using $filter list call
 				resourceId := to.StringLower(keyvault.ID)
-				if _, exists := filterResourceIdMap[resourceId]; !exists {
+				if _, exists := (*filterResourceIdMap)[resourceId]; !exists {
 					logger.Debugf(`ignoring %v, not matching keyvault filter`, resourceId)
 					continue
 				}
