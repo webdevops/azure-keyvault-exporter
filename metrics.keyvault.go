@@ -319,7 +319,8 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), vault
 	if err != nil {
 		logger.Panic(err.Error())
 	}
-	keyPager := keyClient.NewListKeysPager(nil)
+
+	keyPager := keyClient.NewListKeyPropertiesPager(nil)
 
 	keyStatus := float64(1)
 	for keyPager.More() {
@@ -417,7 +418,7 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), vault
 	if err != nil {
 		logger.Panic(err.Error())
 	}
-	secretPager := secretClient.NewListSecretsPager(nil)
+	secretPager := secretClient.NewListSecretPropertiesPager(nil)
 
 	secretStatus := float64(1)
 	for secretPager.More() {
