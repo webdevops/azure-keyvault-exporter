@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"regexp"
+	"strings"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/keyvault/armkeyvault"
 	"github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/resources/armsubscriptions"
@@ -15,8 +18,14 @@ import (
 	"go.uber.org/zap"
 )
 
+var (
+	azureTagNameToPrometheusNameRegExp = regexp.MustCompile("[^_a-zA-Z0-9]")
+)
+
 type MetricsCollectorKeyvault struct {
 	collector.Processor
+
+	contentTagManager ContentTagManager
 
 	prometheus struct {
 		// general
@@ -39,8 +48,66 @@ type MetricsCollectorKeyvault struct {
 	}
 }
 
+type (
+	ContentTagManager struct {
+		config []ContentTagConfig
+	}
+
+	ContentTagConfig struct {
+		Label string
+		Tag   string
+	}
+)
+
+// AddTag adds tag to configuration
+func (ctm *ContentTagManager) AddTag(tagName string) {
+	labelName := fmt.Sprintf(
+		"tag_%s",
+		azureTagNameToPrometheusNameRegExp.ReplaceAllLiteralString(strings.ToLower(tagName), "_"),
+	)
+
+	ctm.config = append(
+		ctm.config,
+		ContentTagConfig{
+			Tag:   tagName,
+			Label: labelName,
+		},
+	)
+}
+
+// AddContentTags adds content tags to prometheus labels for metric
+func (ctm *ContentTagManager) AddContentTags(labels prometheus.Labels, tags map[string]*string) prometheus.Labels {
+	for _, row := range ctm.config {
+		// default value
+		labels[row.Label] = ""
+
+		if val, exists := tags[row.Tag]; exists {
+			labels[row.Label] = to.String(val)
+		}
+	}
+
+	return labels
+}
+
+// AddToPrometheusLabels adds prometheus labels for metric definition
+func (ctm *ContentTagManager) AddToPrometheusLabels(val []string) []string {
+	for _, row := range ctm.config {
+		val = append(val, row.Label)
+	}
+
+	return val
+}
+
 func (m *MetricsCollectorKeyvault) Setup(collector *collector.Collector) {
 	m.Processor.Setup(collector)
+
+	m.contentTagManager = ContentTagManager{
+		config: []ContentTagConfig{},
+	}
+
+	for _, tagName := range opts.KeyVault.Content.Tags {
+		m.contentTagManager.AddTag(tagName)
+	}
 
 	m.prometheus.keyvault = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
@@ -93,13 +160,15 @@ func (m *MetricsCollectorKeyvault) Setup(collector *collector.Collector) {
 			Name: "azurerm_keyvault_key_info",
 			Help: "Azure KeyVault key information",
 		},
-		[]string{
-			"resourceID",
-			"vaultName",
-			"keyName",
-			"keyID",
-			"enabled",
-		},
+		m.contentTagManager.AddToPrometheusLabels(
+			[]string{
+				"resourceID",
+				"vaultName",
+				"keyName",
+				"keyID",
+				"enabled",
+			},
+		),
 	)
 	m.Collector.RegisterMetricList("keyvaultKeyInfo", m.prometheus.keyvaultKeyInfo, true)
 
@@ -124,13 +193,15 @@ func (m *MetricsCollectorKeyvault) Setup(collector *collector.Collector) {
 			Name: "azurerm_keyvault_secret_info",
 			Help: "Azure KeyVault secret information",
 		},
-		[]string{
-			"resourceID",
-			"vaultName",
-			"secretName",
-			"secretID",
-			"enabled",
-		},
+		m.contentTagManager.AddToPrometheusLabels(
+			[]string{
+				"resourceID",
+				"vaultName",
+				"secretName",
+				"secretID",
+				"enabled",
+			},
+		),
 	)
 	m.Collector.RegisterMetricList("keyvaultSecretInfo", m.prometheus.keyvaultSecretInfo, true)
 
@@ -155,13 +226,15 @@ func (m *MetricsCollectorKeyvault) Setup(collector *collector.Collector) {
 			Name: "azurerm_keyvault_certificate_info",
 			Help: "Azure KeyVault certificate information",
 		},
-		[]string{
-			"resourceID",
-			"vaultName",
-			"certificateName",
-			"certificateID",
-			"enabled",
-		},
+		m.contentTagManager.AddToPrometheusLabels(
+			[]string{
+				"resourceID",
+				"vaultName",
+				"certificateName",
+				"certificateID",
+				"enabled",
+			},
+		),
 	)
 	m.Collector.RegisterMetricList("keyvaultCertificateInfo", m.prometheus.keyvaultCertificateInfo, true)
 
@@ -342,13 +415,18 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), vault
 			itemID := string(*item.KID)
 			itemName := item.KID.Name()
 
-			vaultKeyMetrics.AddInfo(prometheus.Labels{
-				"resourceID": vaultResourceId,
-				"vaultName":  azureResource.ResourceName,
-				"keyName":    itemName,
-				"keyID":      itemID,
-				"enabled":    to.BoolString(to.Bool(item.Attributes.Enabled)),
-			})
+			vaultKeyMetrics.AddInfo(
+				m.contentTagManager.AddContentTags(
+					prometheus.Labels{
+						"resourceID": vaultResourceId,
+						"vaultName":  azureResource.ResourceName,
+						"keyName":    itemName,
+						"keyID":      itemID,
+						"enabled":    to.BoolString(to.Bool(item.Attributes.Enabled)),
+					},
+					item.Tags,
+				),
+			)
 
 			// expiry date
 			expiryDate := float64(0)
@@ -440,13 +518,18 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), vault
 			itemID := string(*item.ID)
 			itemName := item.ID.Name()
 
-			vaultSecretMetrics.AddInfo(prometheus.Labels{
-				"resourceID": vaultResourceId,
-				"vaultName":  azureResource.ResourceName,
-				"secretName": itemName,
-				"secretID":   itemID,
-				"enabled":    to.BoolString(to.Bool(item.Attributes.Enabled)),
-			})
+			vaultSecretMetrics.AddInfo(
+				m.contentTagManager.AddContentTags(
+					prometheus.Labels{
+						"resourceID": vaultResourceId,
+						"vaultName":  azureResource.ResourceName,
+						"secretName": itemName,
+						"secretID":   itemID,
+						"enabled":    to.BoolString(to.Bool(item.Attributes.Enabled)),
+					},
+					item.Tags,
+				),
+			)
 
 			// expiry date
 			expiryDate := float64(0)
@@ -538,13 +621,18 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), vault
 			itemID := string(*item.ID)
 			itemName := item.ID.Name()
 
-			vaultCertificateMetrics.AddInfo(prometheus.Labels{
-				"resourceID":      vaultResourceId,
-				"vaultName":       azureResource.ResourceName,
-				"certificateName": itemName,
-				"certificateID":   itemID,
-				"enabled":         to.BoolString(to.Bool(item.Attributes.Enabled)),
-			})
+			vaultCertificateMetrics.AddInfo(
+				m.contentTagManager.AddContentTags(
+					prometheus.Labels{
+						"resourceID":      vaultResourceId,
+						"vaultName":       azureResource.ResourceName,
+						"certificateName": itemName,
+						"certificateID":   itemID,
+						"enabled":         to.BoolString(to.Bool(item.Attributes.Enabled)),
+					},
+					item.Tags,
+				),
+			)
 
 			// expiry
 			expiryDate := float64(0)

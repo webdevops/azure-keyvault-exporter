@@ -22,7 +22,10 @@ type (
 		}
 
 		KeyVault struct {
-			Filter string `long:"keyvault.filter"   env:"KEYVAULT_FILTER"   description:"Filter KeyVaults via ResourceGraph kusto filter, query: 'resource | ${filter} | project id'"`
+			Filter  string `long:"keyvault.filter"   env:"KEYVAULT_FILTER"   description:"Filter KeyVaults via ResourceGraph kusto filter, query: 'resource | ${filter} | project id'"`
+			Content struct {
+				Tags []string `long:"keyvault.content.tag"      env:"KEYVAULT_CONTENT_TAG"        env-delim:" "  description:"KeyVault content (secret, key, certificates) tags (space delimiter)"`
+			}
 		}
 
 		// caching
