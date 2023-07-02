@@ -117,6 +117,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *collector.Collector) {
 		AzureResourceTagManager.AddToPrometheusLabels(
 			[]string{
 				"subscriptionID",
+				"subscriptionName",
 				"resourceID",
 				"vaultName",
 				"location",
@@ -338,13 +339,13 @@ func (m *MetricsCollectorKeyvault) collectSubscription(ctx context.Context, call
 			go func(keyvault *armkeyvault.Vault, contextLogger *zap.SugaredLogger) {
 				defer m.WaitGroup().Done()
 				contextLogger.Info("collecting keyvault metrics")
-				m.collectKeyVault(callback, keyvault, contextLogger)
+				m.collectKeyVault(callback, subscription, keyvault, contextLogger)
 			}(keyvault, contextLogger)
 		}
 	}
 }
 
-func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), vault *armkeyvault.Vault, logger *zap.SugaredLogger) (status bool) {
+func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), subscription *armsubscriptions.Subscription, vault *armkeyvault.Vault, logger *zap.SugaredLogger) (status bool) {
 	status = true
 
 	vaultMetrics := m.Collector.GetMetricList("keyvault")
@@ -372,11 +373,12 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), vault
 	// ########################
 
 	vaultLabels := prometheus.Labels{
-		"subscriptionID": azureResource.Subscription,
-		"resourceID":     vaultResourceId,
-		"vaultName":      azureResource.ResourceName,
-		"location":       to.String(vault.Location),
-		"resourceGroup":  azureResource.ResourceGroup,
+		"subscriptionID":   azureResource.Subscription,
+		"subscriptionName": to.String(subscription.DisplayName),
+		"resourceID":       vaultResourceId,
+		"vaultName":        azureResource.ResourceName,
+		"location":         to.String(vault.Location),
+		"resourceGroup":    azureResource.ResourceGroup,
 	}
 	vaultLabels = AzureResourceTagManager.AddResourceTagsToPrometheusLabels(m.Context(), vaultLabels, vaultResourceId)
 	vaultMetrics.AddInfo(vaultLabels)
