@@ -1,6 +1,6 @@
 module github.com/webdevops/azure-keyvault-exporter
 
-go 1.19
+go 1.20
 
 require (
 	github.com/Azure/azure-sdk-for-go/sdk/resourcemanager/keyvault/armkeyvault v1.2.0
