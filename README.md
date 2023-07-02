@@ -21,6 +21,7 @@ Application Options:
       --azure.subscription=   Azure subscription ID (space delimiter) [$AZURE_SUBSCRIPTION_ID]
       --azure.resource-tag=   Azure Resource tags (space delimiter) (default: owner) [$AZURE_RESOURCE_TAG]
       --keyvault.filter=      Filter KeyVaults via ResourceGraph kusto filter, query: 'resource | ${filter} | project id' [$KEYVAULT_FILTER]
+      --keyvault.content.tag= KeyVault content (secret, key, certificates) tags (space delimiter) [$KEYVAULT_CONTENT_TAG]
       --cache.path=           Cache path (to folder, file://path... or azblob://storageaccount.blob.core.windows.net/containername)
                               [$CACHE_PATH]
       --scrape.time=          Default scrape time (time.duration) (default: 5m) [$SCRAPE_TIME]
