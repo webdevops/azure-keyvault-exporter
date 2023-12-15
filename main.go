@@ -84,7 +84,7 @@ func initAzureConnection() {
 
 	// limit subscriptions (if filter is set)
 	if len(opts.Azure.Subscription) >= 1 {
-		AzureClient.SetSubscriptionFilter(opts.Azure.Subscription...)
+		AzureClient.SetSubscriptionID(opts.Azure.Subscription...)
 	}
 
 	// init subscription iterator

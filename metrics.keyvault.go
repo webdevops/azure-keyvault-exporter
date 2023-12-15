@@ -601,7 +601,7 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), subsc
 	if err != nil {
 		logger.Panic(err.Error())
 	}
-	certificatePager := certificateClient.NewListCertificatesPager(nil)
+	certificatePager := certificateClient.NewListCertificatePropertiesPager(nil)
 
 	certificateStatus := float64(1)
 	for certificatePager.More() {
