@@ -13,7 +13,7 @@ require (
 	github.com/jessevdk/go-flags v1.5.0
 	github.com/prometheus/client_golang v1.18.0
 	github.com/webdevops/go-common v0.0.0-20240217103834-271a75e4e59c
-	go.uber.org/zap v1.26.0
+	go.uber.org/zap v1.27.0
 )
 
 require (
