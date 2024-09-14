@@ -279,7 +279,10 @@ func (m *MetricsCollectorKeyvault) Collect(callback chan<- func()) {
 		}
 
 		// get list of resourceids based on kusto query
-		resourceIdMap, err := AzureClient.ListResourceIdsWithKustoFilter(ctx, filterSubscriptions, filters)
+		opts := armclient.ResourceGraphOptions{
+			Subscriptions: filterSubscriptions,
+		}
+		resourceIdMap, err := AzureClient.ListResourceIdsWithKustoFilter(ctx, filters, opts)
 		if err != nil {
 			logger.Fatal(err)
 		}
