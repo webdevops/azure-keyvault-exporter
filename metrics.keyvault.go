@@ -105,7 +105,7 @@ func (m *MetricsCollectorKeyvault) Setup(collector *collector.Collector) {
 		config: []ContentTagConfig{},
 	}
 
-	for _, tagName := range opts.KeyVault.Content.Tags {
+	for _, tagName := range Opts.KeyVault.Content.Tags {
 		m.contentTagManager.AddTag(tagName)
 	}
 
@@ -261,7 +261,7 @@ func (m *MetricsCollectorKeyvault) Collect(callback chan<- func()) {
 	var filterResourceIdMap *map[string]string
 	ctx := m.Context()
 
-	if len(opts.KeyVault.Filter) > 0 {
+	if len(Opts.KeyVault.Filter) > 0 {
 		// get list of subscriptions
 		subscriptionList, err := AzureSubscriptionsIterator.ListSubscriptions()
 		if err != nil {
@@ -275,7 +275,7 @@ func (m *MetricsCollectorKeyvault) Collect(callback chan<- func()) {
 
 		filters := []string{
 			`where type =~ "microsoft.keyvault/vaults"`,
-			opts.KeyVault.Filter,
+			Opts.KeyVault.Filter,
 		}
 
 		// get list of resourceids based on kusto query

@@ -25,7 +25,7 @@ const (
 
 var (
 	argparser *flags.Parser
-	opts      config.Opts
+	Opts      config.Opts
 
 	AzureClient                *armclient.ArmClient
 	AzureSubscriptionsIterator *armclient.SubscriptionsIterator
@@ -42,9 +42,10 @@ var (
 func main() {
 	initArgparser()
 	initLogger()
+	initSystem()
 
 	logger.Infof("starting azure-keyvault-exporter v%s (%s; %s; by %v)", gitTag, gitCommit, runtime.Version(), Author)
-	logger.Info(string(opts.GetJson()))
+	logger.Info(string(Opts.GetJson()))
 
 	logger.Infof("init Azure connection")
 	initAzureConnection()
@@ -52,12 +53,12 @@ func main() {
 	logger.Infof("starting metrics collection")
 	initMetricCollector()
 
-	logger.Infof("Starting http server on %s", opts.Server.Bind)
+	logger.Infof("Starting http server on %s", Opts.Server.Bind)
 	startHttpServer()
 }
 
 func initArgparser() {
-	argparser = flags.NewParser(&opts, flags.Default)
+	argparser = flags.NewParser(&Opts, flags.Default)
 	_, err := argparser.Parse()
 
 	// check if there is an parse error
@@ -75,7 +76,7 @@ func initArgparser() {
 
 func initAzureConnection() {
 	var err error
-	AzureClient, err = armclient.NewArmClientWithCloudName(*opts.Azure.Environment, logger)
+	AzureClient, err = armclient.NewArmClientWithCloudName(*Opts.Azure.Environment, logger)
 	if err != nil {
 		logger.Fatal(err.Error())
 	}
@@ -83,29 +84,29 @@ func initAzureConnection() {
 	AzureClient.SetUserAgent(UserAgent + gitTag)
 
 	// limit subscriptions (if filter is set)
-	if len(opts.Azure.Subscription) >= 1 {
-		AzureClient.SetSubscriptionID(opts.Azure.Subscription...)
+	if len(Opts.Azure.Subscription) >= 1 {
+		AzureClient.SetSubscriptionID(Opts.Azure.Subscription...)
 	}
 
 	// init subscription iterator
 	AzureSubscriptionsIterator = armclient.NewSubscriptionIterator(AzureClient)
 
 	// init resource tag manager
-	AzureResourceTagManager, err = AzureClient.TagManager.ParseTagConfig(opts.Azure.ResourceTags)
+	AzureResourceTagManager, err = AzureClient.TagManager.ParseTagConfig(Opts.Azure.ResourceTags)
 	if err != nil {
-		logger.Fatalf(`unable to parse resourceTag configuration "%s": %v"`, opts.Azure.ResourceTags, err.Error())
+		logger.Fatalf(`unable to parse resourceTag configuration "%s": %v"`, Opts.Azure.ResourceTags, err.Error())
 	}
 }
 
 func initMetricCollector() {
 	collectorName := "keyvault"
-	if opts.Scrape.Time.Seconds() > 0 {
+	if Opts.Scrape.Time.Seconds() > 0 {
 		c := collector.New(collectorName, &MetricsCollectorKeyvault{}, logger)
-		c.SetScapeTime(opts.Scrape.Time)
-		c.SetConcurrency(opts.Scrape.Concurrency)
+		c.SetScapeTime(Opts.Scrape.Time)
+		c.SetConcurrency(Opts.Scrape.Concurrency)
 		c.SetCache(
-			opts.GetCachePath(collectorName+".json"),
-			collector.BuildCacheTag(cacheTag, opts.Azure, opts.KeyVault),
+			Opts.GetCachePath(collectorName+".json"),
+			collector.BuildCacheTag(cacheTag, Opts.Azure, Opts.KeyVault),
 		)
 		if err := c.Start(); err != nil {
 			logger.Fatal(err.Error())
@@ -136,10 +137,10 @@ func startHttpServer() {
 	mux.Handle("/metrics", tracing.RegisterAzureMetricAutoClean(promhttp.Handler()))
 
 	srv := &http.Server{
-		Addr:         opts.Server.Bind,
+		Addr:         Opts.Server.Bind,
 		Handler:      mux,
-		ReadTimeout:  opts.Server.ReadTimeout,
-		WriteTimeout: opts.Server.WriteTimeout,
+		ReadTimeout:  Opts.Server.ReadTimeout,
+		WriteTimeout: Opts.Server.WriteTimeout,
 	}
 	logger.Fatal(srv.ListenAndServe())
 }
