@@ -36,7 +36,8 @@ jobs:
             target: "final-static"
             suffix: ""
             latest: "auto"
-          - target: "final-azcli"
+          - Dockerfile: Dockerfile
+            target: "final-azcli"
             suffix: "-azcli"
             latest: "auto"
 
