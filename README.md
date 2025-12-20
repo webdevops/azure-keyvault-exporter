@@ -14,24 +14,25 @@ Usage:
   azure-keyvault-exporter [OPTIONS]
 
 Application Options:
-      --log.debug             debug mode [$LOG_DEBUG]
-      --log.devel             development mode [$LOG_DEVEL]
-      --log.json              Switch log output to json format [$LOG_JSON]
-      --azure.environment=    Azure environment name (default: AZUREPUBLICCLOUD) [$AZURE_ENVIRONMENT]
-      --azure.subscription=   Azure subscription ID (space delimiter) [$AZURE_SUBSCRIPTION_ID]
-      --azure.resource-tag=   Azure Resource tags (space delimiter) (default: owner) [$AZURE_RESOURCE_TAG]
-      --keyvault.filter=      Filter KeyVaults via ResourceGraph kusto filter, query: 'resource | ${filter} | project id' [$KEYVAULT_FILTER]
-      --keyvault.content.tag= KeyVault content (secret, key, certificates) tags (space delimiter) [$KEYVAULT_CONTENT_TAG]
-      --cache.path=           Cache path (to folder, file://path... or azblob://storageaccount.blob.core.windows.net/containername)
-                              [$CACHE_PATH]
-      --scrape.time=          Default scrape time (time.duration) (default: 5m) [$SCRAPE_TIME]
-      --scrape.concurrency=   Defines who many Keyvaults can be scraped at the same time (default: 10) [$SCRAPE_CONCURRENCY]
-      --server.bind=          Server address (default: :8080) [$SERVER_BIND]
-      --server.timeout.read=  Server read timeout (default: 5s) [$SERVER_TIMEOUT_READ]
-      --server.timeout.write= Server write timeout (default: 10s) [$SERVER_TIMEOUT_WRITE]
+      --log.level=[trace|debug|info|warning|error] Log level (default: info) [$LOG_LEVEL]
+      --log.format=[logfmt|json]                   Log format (default: logfmt) [$LOG_FORMAT]
+      --log.source=[|short|file|full]              Show source for every log message (useful for debugging and bug reports) [$LOG_SOURCE]
+      --log.color=[|auto|yes|no]                   Enable color for logs [$LOG_COLOR]
+      --log.time                                   Show log time [$LOG_TIME]
+      --azure.environment=                         Azure environment name (default: AZUREPUBLICCLOUD) [$AZURE_ENVIRONMENT]
+      --azure.subscription=                        Azure subscription ID (space delimiter) [$AZURE_SUBSCRIPTION_ID]
+      --azure.resource-tag=                        Azure Resource tags (space delimiter) (default: owner) [$AZURE_RESOURCE_TAG]
+      --keyvault.filter=                           Filter KeyVaults via ResourceGraph kusto filter, query: 'resource | ${filter} | project id' [$KEYVAULT_FILTER]
+      --keyvault.content.tag=                      KeyVault content (secret, key, certificates) tags (space delimiter) [$KEYVAULT_CONTENT_TAG]
+      --cache.path=                                Cache path (to folder, file://path... or azblob://storageaccount.blob.core.windows.net/containername) [$CACHE_PATH]
+      --scrape.time=                               Default scrape time (time.duration) (default: 5m) [$SCRAPE_TIME]
+      --scrape.concurrency=                        Defines who many Keyvaults can be scraped at the same time (default: 10) [$SCRAPE_CONCURRENCY]
+      --server.bind=                               Server address (default: :8080) [$SERVER_BIND]
+      --server.timeout.read=                       Server read timeout (default: 5s) [$SERVER_TIMEOUT_READ]
+      --server.timeout.write=                      Server write timeout (default: 10s) [$SERVER_TIMEOUT_WRITE]
 
 Help Options:
-  -h, --help                  Show this help message
+  -h, --help                                       Show this help message
 ```
 
 for Azure API authentication (using ENV vars) see following documentations:
