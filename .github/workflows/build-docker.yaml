@@ -39,7 +39,7 @@ jobs:
           - Dockerfile: Dockerfile
             target: "final-azcli"
             suffix: "-azcli"
-            latest: "auto"
+            latest: false
 
     runs-on: ubuntu-latest
     steps:
