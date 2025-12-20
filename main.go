@@ -104,12 +104,14 @@ func initMetricCollector() {
 		c := collector.New(collectorName, &MetricsCollectorKeyvault{}, logger.Slog())
 		c.SetScapeTime(Opts.Scrape.Time)
 		c.SetConcurrency(Opts.Scrape.Concurrency)
-		c.SetCache(
+		if err := c.SetCache(
 			Opts.GetCachePath(collectorName+".json"),
 			collector.BuildCacheTag(cacheTag, Opts.Azure, Opts.KeyVault),
-		)
+		); err != nil {
+			logger.Fatal("failed to setup cache", slog.String("collector", collectorName), slog.Any("error", err.Error()))
+		}
 		if err := c.Start(); err != nil {
-			logger.Fatal(err.Error())
+			logger.Fatal("failed to start collector", slog.String("collector", collectorName), slog.Any("error", err.Error()))
 		}
 	} else {
 		logger.With(slog.String("collector", collectorName)).Info("collector disabled")
