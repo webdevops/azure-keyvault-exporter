@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"regexp"
 	"strings"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/webdevops/go-common/azuresdk/armclient"
 	"github.com/webdevops/go-common/prometheus/collector"
 	"github.com/webdevops/go-common/utils/to"
-	"go.uber.org/zap"
 )
 
 var (
@@ -284,26 +284,26 @@ func (m *MetricsCollectorKeyvault) Collect(callback chan<- func()) {
 		}
 		resourceIdMap, err := AzureClient.ListResourceIdsWithKustoFilter(ctx, filters, opts)
 		if err != nil {
-			logger.Fatal(err)
+			logger.Fatal("failed to execute Azure ResourceGraph query", slog.Any("error", err))
 		}
 
 		filterResourceIdMap = &resourceIdMap
 	}
 
-	err := AzureSubscriptionsIterator.ForEachAsync(m.Logger(), func(subscription *armsubscriptions.Subscription, logger *zap.SugaredLogger) {
+	err := AzureSubscriptionsIterator.ForEachAsync(m.Logger(), func(subscription *armsubscriptions.Subscription, logger *slog.Logger) {
 		m.collectSubscription(ctx, callback, subscription, logger, filterResourceIdMap)
 	})
 	if err != nil {
-		m.Logger().Panic(err)
+		panic(err)
 	}
 }
 
-func (m *MetricsCollectorKeyvault) collectSubscription(ctx context.Context, callback chan<- func(), subscription *armsubscriptions.Subscription, logger *zap.SugaredLogger, filterResourceIdMap *map[string]string) {
+func (m *MetricsCollectorKeyvault) collectSubscription(ctx context.Context, callback chan<- func(), subscription *armsubscriptions.Subscription, logger *slog.Logger, filterResourceIdMap *map[string]string) {
 	var err error
 
 	keyvaultClient, err := armkeyvault.NewVaultsClient(*subscription.SubscriptionID, AzureClient.GetCred(), AzureClient.NewArmClientOptions())
 	if err != nil {
-		logger.Panic(err)
+		panic(err)
 	}
 
 	pager := keyvaultClient.NewListBySubscriptionPager(nil)
@@ -311,7 +311,7 @@ func (m *MetricsCollectorKeyvault) collectSubscription(ctx context.Context, call
 	for pager.More() {
 		result, err := pager.NextPage(m.Context())
 		if err != nil {
-			logger.Panic(err)
+			panic(err)
 		}
 
 		if result.Value == nil {
@@ -325,7 +325,7 @@ func (m *MetricsCollectorKeyvault) collectSubscription(ctx context.Context, call
 				// filter is active, check if resourceid was found earlier using $filter list call
 				resourceId := to.StringLower(keyvault.ID)
 				if _, exists := (*filterResourceIdMap)[resourceId]; !exists {
-					logger.Debugf(`ignoring %v, not matching keyvault filter`, resourceId)
+					logger.Debug(`ignoring resource, not matching keyvault filter`, slog.String("resourceID", resourceId))
 					continue
 				}
 			}
@@ -333,13 +333,13 @@ func (m *MetricsCollectorKeyvault) collectSubscription(ctx context.Context, call
 			azureResource, _ := armclient.ParseResourceId(*keyvault.ID)
 
 			contextLogger := logger.With(
-				zap.String("keyvault", azureResource.ResourceName),
-				zap.String("location", to.String(keyvault.Location)),
-				zap.String("resourceGroup", azureResource.ResourceGroup),
+				slog.String("keyvault", azureResource.ResourceName),
+				slog.String("location", to.String(keyvault.Location)),
+				slog.String("resourceID", azureResource.ResourceId()),
 			)
 
 			m.WaitGroup().Add()
-			go func(keyvault *armkeyvault.Vault, contextLogger *zap.SugaredLogger) {
+			go func(keyvault *armkeyvault.Vault, contextLogger *slog.Logger) {
 				defer m.WaitGroup().Done()
 				contextLogger.Info("collecting keyvault metrics")
 				m.collectKeyVault(callback, subscription, keyvault, contextLogger)
@@ -348,7 +348,7 @@ func (m *MetricsCollectorKeyvault) collectSubscription(ctx context.Context, call
 	}
 }
 
-func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), subscription *armsubscriptions.Subscription, vault *armkeyvault.Vault, logger *zap.SugaredLogger) (status bool) {
+func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), subscription *armsubscriptions.Subscription, vault *armkeyvault.Vault, logger *slog.Logger) (status bool) {
 	status = true
 
 	vaultMetrics := m.Collector.GetMetricList("keyvault")
@@ -395,7 +395,7 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), subsc
 	}
 	keyClient, err := azkeys.NewClient(vaultUrl, AzureClient.GetCred(), &keyOpts)
 	if err != nil {
-		logger.Panic(err.Error())
+		panic(err)
 	}
 
 	keyPager := keyClient.NewListKeyPropertiesPager(nil)
@@ -404,7 +404,7 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), subsc
 	for keyPager.More() {
 		result, err := keyPager.NextPage(m.Context())
 		if err != nil {
-			logger.Warn(err)
+			logger.Warn("failed to page Azure KeyVault keys", slog.Any("error", err))
 			keyStatus = 0
 			break
 		}
@@ -499,7 +499,7 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), subsc
 	}
 	secretClient, err := azsecrets.NewClient(vaultUrl, AzureClient.GetCred(), &secretOpts)
 	if err != nil {
-		logger.Panic(err.Error())
+		panic(err.Error())
 	}
 	secretPager := secretClient.NewListSecretPropertiesPager(nil)
 
@@ -507,7 +507,7 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), subsc
 	for secretPager.More() {
 		result, err := secretPager.NextPage(m.Context())
 		if err != nil {
-			logger.Warn(err)
+			logger.Warn("failed to page Azure KeyVault secrets", slog.Any("error", err))
 			secretStatus = 0
 			break
 		}
@@ -602,7 +602,7 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), subsc
 	}
 	certificateClient, err := azcertificates.NewClient(vaultUrl, AzureClient.GetCred(), &certificateOpts)
 	if err != nil {
-		logger.Panic(err.Error())
+		panic(err.Error())
 	}
 	certificatePager := certificateClient.NewListCertificatePropertiesPager(nil)
 
@@ -610,7 +610,7 @@ func (m *MetricsCollectorKeyvault) collectKeyVault(callback chan<- func(), subsc
 	for certificatePager.More() {
 		result, err := certificatePager.NextPage(m.Context())
 		if err != nil {
-			logger.Warn(err)
+			logger.Warn("failed to page Azure KeyVault certificates", slog.Any("error", err))
 			certificateStatus = 0
 			break
 		}

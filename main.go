@@ -3,17 +3,16 @@ package main
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"os"
 	"runtime"
 
 	flags "github.com/jessevdk/go-flags"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/webdevops/go-common/prometheus/collector"
-	"go.uber.org/zap"
-
 	"github.com/webdevops/go-common/azuresdk/armclient"
 	"github.com/webdevops/go-common/azuresdk/prometheus/tracing"
+	"github.com/webdevops/go-common/prometheus/collector"
 
 	"github.com/webdevops/azure-keyvault-exporter/config"
 )
@@ -34,6 +33,7 @@ var (
 	// Git version information
 	gitCommit = "<unknown>"
 	gitTag    = "<unknown>"
+	buildDate = "<unknown>"
 
 	// cache config
 	cacheTag = "v1"
@@ -43,7 +43,7 @@ func main() {
 	initArgparser()
 	initLogger()
 
-	logger.Infof("starting azure-keyvault-exporter v%s (%s; %s; by %v)", gitTag, gitCommit, runtime.Version(), Author)
+	logger.Infof("starting azure-keyvault-exporter v%s (%s; %s; by %v at %v)", gitTag, gitCommit, runtime.Version(), Author, buildDate)
 	logger.Info(string(Opts.GetJson()))
 	initSystem()
 
@@ -53,7 +53,7 @@ func main() {
 	logger.Infof("starting metrics collection")
 	initMetricCollector()
 
-	logger.Infof("Starting http server on %s", Opts.Server.Bind)
+	logger.Info("Starting http server", slog.String("bind", Opts.Server.Bind))
 	startHttpServer()
 }
 
@@ -76,7 +76,7 @@ func initArgparser() {
 
 func initAzureConnection() {
 	var err error
-	AzureClient, err = armclient.NewArmClientWithCloudName(*Opts.Azure.Environment, logger)
+	AzureClient, err = armclient.NewArmClientWithCloudName(*Opts.Azure.Environment, logger.Slog())
 	if err != nil {
 		logger.Fatal(err.Error())
 	}
@@ -101,7 +101,7 @@ func initAzureConnection() {
 func initMetricCollector() {
 	collectorName := "keyvault"
 	if Opts.Scrape.Time.Seconds() > 0 {
-		c := collector.New(collectorName, &MetricsCollectorKeyvault{}, logger)
+		c := collector.New(collectorName, &MetricsCollectorKeyvault{}, logger.Slog())
 		c.SetScapeTime(Opts.Scrape.Time)
 		c.SetConcurrency(Opts.Scrape.Concurrency)
 		c.SetCache(
@@ -112,7 +112,7 @@ func initMetricCollector() {
 			logger.Fatal(err.Error())
 		}
 	} else {
-		logger.With(zap.String("collector", collectorName)).Info("collector disabled")
+		logger.With(slog.String("collector", collectorName)).Info("collector disabled")
 	}
 }
 
@@ -123,14 +123,14 @@ func startHttpServer() {
 	// healthz
 	mux.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		if _, err := fmt.Fprint(w, "Ok"); err != nil {
-			logger.Error(err)
+			logger.Error(err.Error())
 		}
 	})
 
 	// readyz
 	mux.HandleFunc("/readyz", func(w http.ResponseWriter, r *http.Request) {
 		if _, err := fmt.Fprint(w, "Ok"); err != nil {
-			logger.Error(err)
+			logger.Error(err.Error())
 		}
 	})
 
@@ -142,5 +142,7 @@ func startHttpServer() {
 		ReadTimeout:  Opts.Server.ReadTimeout,
 		WriteTimeout: Opts.Server.WriteTimeout,
 	}
-	logger.Fatal(srv.ListenAndServe())
+	if err := srv.ListenAndServe(); err != nil {
+		logger.Fatal(err.Error())
+	}
 }

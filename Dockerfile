@@ -1,7 +1,7 @@
 #############################################
 # Build
 #############################################
-FROM --platform=$BUILDPLATFORM golang:1.24-alpine AS build
+FROM --platform=$BUILDPLATFORM golang:1.25-alpine AS build
 
 RUN apk upgrade --no-cache --force
 RUN apk add --update build-base make git
@@ -15,6 +15,7 @@ RUN go mod download
 # Compile
 COPY . .
 RUN make test
+RUN make build # warmup
 ARG TARGETOS TARGETARCH
 RUN GOOS=${TARGETOS} GOARCH=${TARGETARCH} make build
 
@@ -28,7 +29,17 @@ COPY --from=build /go/src/github.com/webdevops/azure-keyvault-exporter/azure-key
 RUN ["./azure-keyvault-exporter", "--help"]
 
 #############################################
-# Final
+# final-azcli
+#############################################
+FROM mcr.microsoft.com/azure-cli AS final-azcli
+ENV LOG_JSON=1
+WORKDIR /
+COPY --from=test /app .
+USER 1000:1000
+ENTRYPOINT ["/azure-keyvault-exporter"]
+
+#############################################
+# final-static
 #############################################
 FROM gcr.io/distroless/static AS final-static
 ENV LOG_JSON=1
